@@ -1,5 +1,11 @@
 # Emoncms backup export and import tool for backup and migration
 
+Install this module in your home folder then symlink the sub-folder called backup to your emoncms Modules directory:
+
+    cd /home/pi
+    git clone https://github.com/emoncms/backup.git
+    ln -s /home/pi/backup/backup /var/www/emoncms/Modules/backup    
+
 ### service-runner
 
 The backup utility first requires service-runner to be running in the background on the emonpi/emonbase or other server that emoncms is running on. service-runner provides a way of starting background scripts from the emoncms UI so that when the 'create backup' button is clicked in the browser this first creates a flag in /tmp of the form /tmp/emoncms-flag-name. This flag file contains the location of the script to run and a log file. service-runner checks for flags every 1 seconds.
