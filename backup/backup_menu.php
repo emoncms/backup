@@ -1,3 +1,3 @@
 <?php
 
-    $menu_dropdown_config[] = array('name'=> dgettext($domain, "Backup"), 'icon'=>'icon-tags', 'path'=>"backup/view" , 'session'=>"write", 'order' => 9 );
+    $menu_dropdown_config[] = array('name'=> dgettext($domain, "Backup"), 'icon'=>'icon-circle-arrow-down', 'path'=>"backup/view" , 'session'=>"write", 'order' => 9 );
