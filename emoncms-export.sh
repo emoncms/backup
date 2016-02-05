@@ -35,12 +35,9 @@ cd $data_path
 sudo service feedwriter stop
 
 # MYSQL Dump Emoncms database
-if [[ $image == "old" ]]
-then
-  mysqldump -u root -praspberry emoncms > $data_path/emoncms.sql
-else
-  mysqldump -u emoncms -pemonpiemoncmsmysql2016 emoncms > $data_path/emoncms.sql
-fi
+auth=$(php get_emoncms_mysql_auth.php)
+IFS=":" read username password <<< "$auth"
+mysqldump -u $username -p$password emoncms > $data_path/emoncms.sql
 
 # Compress backup with database and config files
 tar -cvzf backup-$date.tar.gz emoncms.sql phpfina phptimeseries emonhub.conf emoncms.conf
