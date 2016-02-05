@@ -8,7 +8,18 @@ To install service-runner add the following entry to crontab (crontab -e):
 
     * * * * * /var/www/emoncms/Modules/backup/service-runner >> /var/log/service-runner.log 2>&1
     
-    
+# php.ini
 
-    
+In order to enable uploads of backup zip files we need to set the maximum upload size to be larger than the file we want to upload. This can be set system wide in /etc/php5/apache2/php.ini:
 
+    sudo nano /etc/php5/apache2/php.ini
+    
+Set:
+
+    post_max_size = 200M
+    upload_max_filesize = 200M
+
+# Create uploads folder
+
+    sudo mkdir /home/pi/data/uploads
+    sudo chown www-data /home/pi/data/uploads
