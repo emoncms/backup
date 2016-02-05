@@ -12,7 +12,7 @@ The backup utility first requires service-runner to be running in the background
 
 To install service-runner add the following entry to crontab (crontab -e):
 
-    * * * * * /home/pi/backup/service-runner >> /var/log/service-runner.log 2>&1
+    * * * * * /home/pi/backup/service-runner >> /home/pi/data/service-runner.log 2>&1
     
 # php.ini
 

@@ -17,7 +17,7 @@ do
             IFS=\> read script logfile <<< "$tmp"
             echo "STARTING: $script > $logfile"
             sudo rm $flag
-            sh $script > $logfile
+            $script > $logfile
             echo "COMPLETE: $script > $logfile"
         fi
     done
