@@ -18,7 +18,7 @@ function backup_controller()
     $result = false;
     
     $export_flag = "/tmp/emoncms-flag-export";
-    $export_script = "/var/www/emoncms/Modules/backup/emoncms-export.sh";
+    $export_script = "/home/pi/backup/emoncms-export.sh";
     $export_logfile = "/home/pi/data/emoncms-export.log";
     
     // This module is only to be ran by the admin user
