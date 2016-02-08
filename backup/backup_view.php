@@ -19,7 +19,11 @@ pre {
     
     font-size:16px;
 }
-#console-out {
+#export-log {
+    padding-left:20px;
+    padding-top:20px;
+}
+#import-log {
     padding-left:20px;
     padding-top:20px;
 }
@@ -33,7 +37,7 @@ pre {
         <h3>Export</h3>
         <p>Create a compressed archive containing the emoncms mysql database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf. This can be used to migrate data to another emonpi or emonbase. Depending on your data size it may take a while to prepare the backup file. Once ready a link will appear here from which the backup can then be downloaded. Refresh the page to see the link.</p>
         
-        <pre id="log"><div id="console-out"></div></pre>
+        <pre id="export-log-bound"><div id="export-log"></div></pre>
     </td>
     <td class="buttons"><br>
         <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>
@@ -49,7 +53,7 @@ pre {
     <td>
         <h3>Import</h3>
         <p>Import an emoncms backup archive containing the emoncms mysql database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf.</p>
-        <div id="emonpi-backup-reply" style="display:none"></div>
+        <pre id="import-log-bound"><div id="import-log"></div></pre>
     </td>
     <td>
         <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
@@ -66,26 +70,41 @@ pre {
 
 var path = "<?php echo $path; ?>";
 
-logupdate();
-var updater = false;
-
+export_log_update();
+import_log_update();
+var export_updater = false;
+var import_updater = false;
+export_updater = setInterval(export_log_update,1000);
+import_updater = setInterval(import_log_update,1000);
 
 $("#emonpi-backup").click(function() {
   $.ajax({ url: path+"backup/start", async: true, dataType: "text", success: function(result) {
-      $("#console-out").html(result);
-      updater = setInterval(logupdate,1000);
+      $("#export-log").html(result);
     }
   });
 });
 
-function logupdate() {
-  $.ajax({ url: path+"backup/log", async: true, dataType: "text", success: function(result)
+function export_log_update() {
+  $.ajax({ url: path+"backup/exportlog", async: true, dataType: "text", success: function(result)
     {
-      $("#console-out").html(result);
-      document.getElementById("log").scrollTop = document.getElementById("log").scrollHeight 
+      $("#export-log").html(result);
+      document.getElementById("export-log-bound").scrollTop = document.getElementById("export-log-bound").scrollHeight 
         
-      if (result.indexOf("Starting RPI")!=-1) {
-          clearInterval(updater);
+      if (result.indexOf("=== Emoncms export complete! ===")!=-1) {
+          clearInterval(export_updater);
+      }
+    }
+  });
+}
+
+function import_log_update() {
+  $.ajax({ url: path+"backup/importlog", async: true, dataType: "text", success: function(result)
+    {
+      $("#import-log").html(result);
+      document.getElementById("import-log-bound").scrollTop = document.getElementById("import-log-bound").scrollHeight 
+        
+      if (result.indexOf("=== Emoncms import complete! ===")!=-1) {
+          clearInterval(import_updater);
       }
     }
   });

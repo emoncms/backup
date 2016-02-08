@@ -20,7 +20,11 @@ function backup_controller()
     $export_flag = "/tmp/emoncms-flag-export";
     $export_script = "/home/pi/backup/emoncms-export.sh";
     $export_logfile = "/home/pi/data/emoncms-export.log";
-    
+
+    $import_flag = "/tmp/emoncms-flag-import";
+    $import_script = "/home/pi/backup/emoncms-import.sh";
+    $import_logfile = "/home/pi/data/emoncms-import.log";
+        
     // This module is only to be ran by the admin user
     if (!$session['write'] && !$session['admin']) return array('content'=>false);
 
@@ -40,10 +44,17 @@ function backup_controller()
         @fclose($fh);
     }
     
-    if ($route->action == 'log') { 
+    if ($route->action == 'exportlog') { 
         $route->format = "text";
         ob_start();
         passthru("cat $export_logfile");
+        $result = trim(ob_get_clean());
+    }
+    
+    if ($route->action == 'importlog') { 
+        $route->format = "text";
+        ob_start();
+        passthru("cat $import_logfile");
         $result = trim(ob_get_clean());
     }
     
@@ -64,6 +75,16 @@ function backup_controller()
         $target_path = $target_path . basename( $_FILES['file']['name']); 
 
         if (move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) {
+        
+            $fh = @fopen($import_flag,"w");
+            if (!$fh) {
+                $result = "ERROR: Can't write the flag $import_flag.";
+            } else {
+                fwrite($fh,"$import_script>$import_logfile");
+                $result = "Backup flag set";
+            }
+            @fclose($fh);
+        
             header('Location: '.$path.'backup');
         } else {
             $result = "There was an error uploading the file, please try again!";

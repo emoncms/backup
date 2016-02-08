@@ -45,5 +45,5 @@ tar -cvzf backup-$date.tar.gz emoncms.sql phpfina phptimeseries emonhub.conf emo
 sudo service feedwriter start
 
 echo "backup saved $data_path/backup-$date.tar.gz"
-echo "done"
+echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
 date

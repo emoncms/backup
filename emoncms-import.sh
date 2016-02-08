@@ -92,6 +92,6 @@ sudo service emonhub start
 sudo service emoncms-nodes-service start
 sudo service feedwriter start
 
-echo "done"
+echo "=== Emoncms import complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
 date
 rpi-rw
