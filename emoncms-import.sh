@@ -3,9 +3,9 @@
 backup_source_path="/home/pi/data/uploads"
 data_path="/home/pi/data"
 
-echo "=== Emoncms import start ===""
+echo "=== Emoncms import start ==="
 echo "from $backup_source_path"
-echo "...to $data_path"
+echo "to $data_path"
 date
 
 
@@ -15,6 +15,14 @@ date
 image_version=$(ls /boot | grep emonSD)
 # Check first 16 characters of filename
 image_date=${image_version:0:16}
+if [[ "${image_version:0:6}" == "emonSD" ]]
+then
+    echo "Image version: $image_version"
+else
+    echo "Non OpenEnergyMonitor offical emonSD image, no gurantees this import will work :-/"
+    read -p "Press any key to continue...or CTRL+C to exit " -n1 -s
+fi
+
 if [[ "$image_date" == "emonSD-17Jun2015" ]]
 then
   image="old"
@@ -23,24 +31,17 @@ else
   image="new"
   echo "$image image"
 fi
-
-if [[ "${image_version:0:6}" == "emonSD" ]]
-then
-    echo "Image version: $image_version"
-else
-    echo "Non OpenEnergyMonitor offical emonSD image, no gurantees this import will work :-/"
-    read -p "Press any key to continue...or CTRL+C to exit " -n1 -s
-fi
 #-----------------------------------------------------------------------------------------------
 
 
 
 # Get latest backup filename
-backup_filename=$((cd $backup_source_path && ls -t *.gz) | grep emoncms-backup | head -1)
+backup_filename=$((cd $backup_source_path && ls -t *.gz) | head -1)
+echo $backup_filename
 cd ~/
 if [[ -z "$backup_filename" ]] #if backup does not exist (empty filename string)
 then
-    echo "backup does not exit..stoppping import"
+    echo "backup does not exit..stopping import"
     exit 1
 else # if backup exists
   echo "backup found: $backup_filename starting import.."
@@ -94,4 +95,4 @@ sudo service feedwriter start
 
 date
 # This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed here
-echo "=== Emoncms import complete! ===" 
+echo "=== Emoncms import complete! ==="

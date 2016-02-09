@@ -105,7 +105,7 @@ function import_log_update() {
     {
       $("#import-log").html(result);
       document.getElementById("import-log-bound").scrollTop = document.getElementById("import-log-bound").scrollHeight
-      import_updater = setInterval(import_log_update,1000);
+
 
       if (result.indexOf("=== Emoncms import complete! ===")!=-1) {
           clearInterval(import_updater);
