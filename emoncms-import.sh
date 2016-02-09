@@ -3,7 +3,8 @@
 backup_source_path="/home/pi/data/uploads"
 data_path="/home/pi/data"
 
-echo "Emoncms import...from $backup_source_path"
+echo "=== Emoncms import start ===""
+echo "from $backup_source_path"
 echo "...to $data_path"
 date
 
@@ -44,7 +45,6 @@ then
 else # if backup exists
   echo "backup found: $backup_filename starting import.."
 
-  rpi-rw
   sudo service emonhub stop
   sudo service emoncms-nodes-service stop
   sudo service feedwriter stop
@@ -92,6 +92,6 @@ sudo service emonhub start
 sudo service emoncms-nodes-service start
 sudo service feedwriter start
 
-echo "=== Emoncms import complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
 date
-rpi-rw
+# This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed here
+echo "=== Emoncms import complete! ===" 

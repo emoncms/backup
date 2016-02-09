@@ -3,8 +3,10 @@ data_path="/home/pi/data"
 
 date=$(date +"%Y-%m-%d")
 
-echo "Emoncms export...from $data_path"
-echo $date
+echo "=== Emoncms export start ==="
+date
+echo "backup from $data_path"
+
 
 #-----------------------------------------------------------------------------------------------
 # Check emonPi / emonBase image version
@@ -41,10 +43,11 @@ IFS=":" read username password <<< "$auth"
 mysqldump -u $username -p$password emoncms > $data_path/emoncms.sql
 
 # Compress backup with database and config files
-tar -cvzf backup-$date.tar.gz emoncms.sql phpfina phptimeseries emonhub.conf emoncms.conf
+tar -cvzf emoncms-backup-$date.tar.gz emoncms.sql phpfina phptimeseries emonhub.conf emoncms.conf
 
 sudo service feedwriter start
 
 echo "backup saved $data_path/emoncms-backup-$date.tar.gz"
-echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
 date
+echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
+echo "Refresh page to view download linkl "
