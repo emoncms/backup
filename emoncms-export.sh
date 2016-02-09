@@ -49,5 +49,5 @@ sudo service feedwriter start
 
 echo "backup saved $data_path/emoncms-backup-$date.tar.gz"
 date
+echo "done..refresh page to view download link"
 echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
-echo "Refresh page to view download linkl "
