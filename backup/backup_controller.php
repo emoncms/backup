@@ -60,8 +60,8 @@ function backup_controller()
 
     if ($route->action == "download") {
         header("Content-type: application/zip");
-        $backup_filename="emoncms-backup-".date("Y-m-d")."tar.gz";
-        header("Content-Disposition: attachment; filename=$filename"); 
+        $backup_filename="emoncms-backup-".date("Y-m-d").".tar.gz";
+        header("Content-Disposition: attachment; filename=$filename");
         header("Pragma: no-cache");
         header("Expires: 0");
         readfile("/home/pi/data/$backup_filename");
