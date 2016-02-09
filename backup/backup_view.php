@@ -42,8 +42,10 @@ pre {
     <td class="buttons"><br>
         <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>
         <?php
-        if (file_exists("/home/pi/data/backup.tar.gz") && !file_exists("/tmp/backuplock")) {
-            echo '<br><br><b>Download ready:</b><br><a href="'.$path.'backup/download">backup.tar.gz</a>';
+        $backup_filename="emoncms-backup-".date("Y-m-d").".tar.gz";
+        if (file_exists("/home/pi/data/$backup_filename") && !file_exists("/tmp/backuplock"))
+        {
+            echo '<br><br><b>Download ready:</b><br><a href="'.$path.'backup/download">Download Backup</a>';
         }
         ?>
     </td>
@@ -103,6 +105,7 @@ function import_log_update() {
     {
       $("#import-log").html(result);
       document.getElementById("import-log-bound").scrollTop = document.getElementById("import-log-bound").scrollHeight
+      import_updater = setInterval(import_log_update,1000);
 
       if (result.indexOf("=== Emoncms import complete! ===")!=-1) {
           clearInterval(import_updater);
