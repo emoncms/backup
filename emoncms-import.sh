@@ -35,7 +35,7 @@ fi
 
 
 # Get latest backup filename
-backup_filename=$((cd $backup_source_path && ls -t *.gz) | grep backup | head -1)
+backup_filename=$((cd $backup_source_path && ls -t *.gz) | grep emoncms-backup | head -1)
 cd ~/
 if [[ -z "$backup_filename" ]] #if backup does not exist (empty filename string)
 then

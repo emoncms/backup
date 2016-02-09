@@ -1,5 +1,7 @@
 # Emoncms backup export and import tool for backup and migration
 
+**CURRENTLY ONLY WORKS ON EMONPI**
+
 Install this module in your home folder then symlink the sub-folder called backup to your emoncms Modules directory:
 
     cd /home/pi
@@ -13,13 +15,13 @@ The backup utility first requires service-runner to be running in the background
 To install service-runner add the following entry to crontab (crontab -e):
 
     * * * * * /home/pi/backup/service-runner >> /home/pi/data/service-runner.log 2>&1
-    
+
 # php.ini
 
 In order to enable uploads of backup zip files we need to set the maximum upload size to be larger than the file we want to upload. This can be set system wide in /etc/php5/apache2/php.ini:
 
     sudo nano /etc/php5/apache2/php.ini
-    
+
 Set:
 
     post_max_size = 200M
