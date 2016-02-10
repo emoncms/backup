@@ -55,6 +55,7 @@ pre {
     <td>
         <h3>Import</h3>
         <p>Import an emoncms backup archive containing the emoncms mysql database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf.</p>
+	<p><b>*CAUTION ALL DATA IN THIS ACCOUNT WILL BE OVERWRITTEN BY THE IMPORTETD DATA*</b></p>
         <pre id="import-log-bound"><div id="import-log"></div></pre>
     </td>
     <td>
