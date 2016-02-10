@@ -1,12 +1,23 @@
 #!/bin/bash
-data_path="/home/pi/data"
 
 date=$(date +"%Y-%m-%d")
 
 echo "=== Emoncms export start ==="
 date
-echo "backup from $data_path"
 
+echo "Reading config.cfg...." >&2
+if [ -f $PWD/config.cfg ]
+then
+    source $PWD/config.cfg
+    echo "Location of mysql database: $mysql_path" >&2
+    echo "Location of emonhub.conf: $emonhub_config_path" >&2
+    echo "Location of emoncms.conf: $emoncms_config_path" >&2
+    echo "Location of Emoncms: $emoncms_location" >&2
+    echo "Backup destination: $backup_location" >&2
+else
+    echo "ERROR: Backup config.cfg file does not exist"
+    exit 1
+fi
 
 #-----------------------------------------------------------------------------------------------
 # Check emonPi / emonBase image version
@@ -18,36 +29,40 @@ image_date=${image_version:0:16}
 if [[ "${image_version:0:6}" == "emonSD" ]]
 then
     echo "Image version: $image_version"
-else
-    echo "Non OpenEnergyMonitor offical emonSD image, no gurantees this script will work :-/"
-    read -p "Press any key to continue...or CTRL+C to exit " -n1 -s
 fi
 
+# Detect if SD card image verion, used to restore the correct emonhub.conf
 if [[ "$image_date" == "emonSD-17Jun2015" ]]
 then
   image="old"
-  echo "$image image"
 else
   image="new"
-  echo "$image image"
 fi
 #-----------------------------------------------------------------------------------------------
 
-cd $data_path
+
 
 sudo service feedwriter stop
 
 # MYSQL Dump Emoncms database
-auth=$(php get_emoncms_mysql_auth.php)
+auth=$(php $PWD/get_emoncms_mysql_auth.php)
 IFS=":" read username password <<< "$auth"
-mysqldump -u $username -p$password emoncms > $data_path/emoncms.sql
+
+
+# if username sring is not empty
+if [ -n "$username" ]; then
+    mysqldump -u$username -p$password emoncms > $backup_location/emoncms.sql
+else
+    echo "Cannot read MYSQL authentication details from Emoncms settings.php..STOPPING EXPORT"
+    exit 1
+fi
 
 # Compress backup with database and config files
-tar -cvzf emoncms-backup-$date.tar.gz emoncms.sql phpfina phptimeseries emonhub.conf emoncms.conf
+tar -cvzf $backup_location/emoncms-backup-$date.tar.gz $mysql_path/emoncms.sql $mysql_path/phpfina $mysql_path/phptimeseries $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf
 
 sudo service feedwriter start
 
-echo "backup saved $data_path/emoncms-backup-$date.tar.gz"
+echo "backup saved $backup_location/emoncms-backup-$date.tar.gz"
 date
 echo "done..refresh page to view download link"
 echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here

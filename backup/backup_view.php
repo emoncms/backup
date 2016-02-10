@@ -35,7 +35,7 @@ pre {
 <tr>
     <td>
         <h3>Export</h3>
-        <p>Create a compressed archive containing the emoncms mysql database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf. This can be used to migrate data to another emonpi or emonbase. Depending on your data size it may take a while to prepare the backup file. Once ready a link will appear here from which the backup can then be downloaded. Refresh the page to see the link.</p>
+        <p>Export a compressed archive containing the emoncms mysql database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf. This can be used to migrate data to another emonpi or emonbase. Depending on your data size it may take a while to prepare the backup file. Once ready a link will appear here from which the backup can then be downloaded. Refresh the page to see the link.</p>
 
         <pre id="export-log-bound"><div id="export-log"></div></pre>
     </td>
@@ -55,6 +55,7 @@ pre {
     <td>
         <h3>Import</h3>
         <p>Import an emoncms backup archive containing the emoncms mysql database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf.</p>
+        <p>Before import ensure latest version of Emoncms & emonHub.</p>
 	<p><b>*CAUTION ALL DATA IN THIS ACCOUNT WILL BE OVERWRITTEN BY THE IMPORTETD DATA*</b></p>
         <pre id="import-log-bound"><div id="import-log"></div></pre>
     </td>
