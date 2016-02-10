@@ -57,6 +57,8 @@ else
     exit 1
 fi
 
+echo "MYSQL Emoncms database dump complete, starting compressing backupgit .."
+
 # Compress backup with database and config files
 tar -cvzf $backup_location/emoncms-backup-$date.tar.gz $mysql_path/emoncms.sql $mysql_path/phpfina $mysql_path/phptimeseries $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf
 

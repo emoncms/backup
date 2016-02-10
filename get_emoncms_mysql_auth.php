@@ -5,7 +5,7 @@
     // unlink("/tmp/checkuser");
     // if ($user!=1000) die;
 
-    chdir("/var/www/emoncms");
+    chdir("$argv");
     define('EMONCMS_EXEC', 1);
     require "process_settings.php";
     echo $username.":".$password;
