@@ -1,7 +1,10 @@
 # Emoncms backup export and import tool for backup and migration
 
 * Export a compressed archive containing the Emoncms MYSQL database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf
-* Import compressed archive into new Emoncms install
+*
+* Import compressed archive into new emonPi **(currently import via Emoncms backup web interface only work on emonPi)**
+
+![image](image.png)
 
 # Install
  
@@ -40,11 +43,6 @@ Set:
 
     sudo mkdir /home/pi/data/uploads
     sudo chown www-data /home/pi/data/uploads -R
-
-## For non emonPi / emonBase:
-
-    sudo mkdir ~/uploads
-    sudo chown www-data ~/uploads -R
     
 ## Config
 
