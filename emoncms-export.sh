@@ -4,18 +4,17 @@ date=$(date +"%Y-%m-%d")
 
 echo "=== Emoncms export start ==="
 date
-
-echo "Reading config.cfg...." >&2
-if [ -f $PWD/config.cfg ]
+echo "Reading ~/backup/config.cfg...."
+if [ -f ~/backup/config.cfg ]
 then
-    source $PWD/config.cfg
-    echo "Location of mysql database: $mysql_path" >&2
-    echo "Location of emonhub.conf: $emonhub_config_path" >&2
-    echo "Location of emoncms.conf: $emoncms_config_path" >&2
-    echo "Location of Emoncms: $emoncms_location" >&2
-    echo "Backup destination: $backup_location" >&2
+    source ~/backup/config.cfg
+    echo "Location of mysql database: $mysql_path"
+    echo "Location of emonhub.conf: $emonhub_config_path"
+    echo "Location of emoncms.conf: $emoncms_config_path"
+    echo "Location of Emoncms: $emoncms_location"
+    echo "Backup destination: $backup_location"
 else
-    echo "ERROR: Backup config.cfg file does not exist"
+    echo "ERROR: Backup ~/backup/config.cfg file does not exist"
     exit 1
 fi
 
@@ -44,20 +43,25 @@ fi
 
 sudo service feedwriter stop
 
-# MYSQL Dump Emoncms database
-auth=$(php $PWD/get_emoncms_mysql_auth.php)
-IFS=":" read username password <<< "$auth"
-
-
-# if username sring is not empty
-if [ -n "$username" ]; then
-    mysqldump -u$username -p$password emoncms > $backup_location/emoncms.sql
+# Get MYSQL authentication details from settings.php
+if [ -f ~/backup/get_emoncms_mysql_auth.php ]; then
+    auth=$(echo $emoncms_location | php ~/backup/get_emoncms_mysql_auth.php php)
+    IFS=":" read username password <<< "$auth"
 else
-    echo "Cannot read MYSQL authentication details from Emoncms settings.php..STOPPING EXPORT"
+    echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
+    echo "$PWD"
     exit 1
 fi
 
-echo "MYSQL Emoncms database dump complete, starting compressing backupgit .."
+# MYSQL Dump Emoncms database
+if [ -n "$username" ]; then # if username sring is not empty
+    mysqldump -u$username -p$password emoncms > $backup_location/emoncms.sql
+else
+    echo "Error: Cannot read MYSQL authentication details from Emoncms settings.php"
+    exit 1
+fi
+
+echo "Emoncms MYSQL database dump complete, starting compressing backup .."
 
 # Compress backup with database and config files
 tar -cvzf $backup_location/emoncms-backup-$date.tar.gz $mysql_path/emoncms.sql $mysql_path/phpfina $mysql_path/phptimeseries $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf
