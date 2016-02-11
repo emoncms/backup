@@ -61,14 +61,22 @@ else
     exit 1
 fi
 
-echo "Emoncms MYSQL database dump complete, starting compressing backup .."
+echo "Emoncms MYSQL database dump complete, adding files to archive .."
 
-# Compress backup with database and config files
-tar -cvzf $backup_location/emoncms-backup-$date.tar.gz $mysql_path/emoncms.sql $mysql_path/phpfina $mysql_path/phptimeseries $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf
+# Create backup archive and add config files stripping out the path
+tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf --transform 's?.*/??g'
+
+# Append database folder to the archive with absolute path
+tar --append --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries
+
+# Compress backup
+echo "Compressing archive..."
+gzip -f $backup_location/emoncms-backup-$date.tar
+
 
 sudo service feedwriter start
 
-echo "backup saved $backup_location/emoncms-backup-$date.tar.gz"
+echo "Backup saved: $backup_location/emoncms-backup-$date.tar.gz"
 date
-echo "done..refresh page to view download link"
+echo "Export finished...refresh page to view download link"
 echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here

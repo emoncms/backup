@@ -66,7 +66,7 @@ if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
 fi
 
 # Uncompress backup
-tar xvfz $backup_source_path/$backup_filename -C $backup_location
+tar xfz $backup_source_path/$backup_filename -C $backup_location
   
   
 # Get MYSQL authentication details from settings.php
