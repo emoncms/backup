@@ -1,5 +1,4 @@
 #!/bin/bash
-
 backup_source_path="/home/pi/data/uploads"
 data_path="/home/pi/data"
 
@@ -90,9 +89,13 @@ fi
 echo "Emoncms MYSQL database import..."
 if [ -n "$password" ]
 then # if username sring is not empty
-    if [ -f $backup_location/emoncms.sql ]; then
+    if [ -f $backup_location/import/emoncms.sql ]; then
         mysql -u$username -p$password emoncms < $backup_location/import/emoncms.sql
+    else
+        "Error: cannot find emoncms.sql database to import"
+        exit 1
     fi
+    
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
     exit 1
@@ -132,4 +135,4 @@ if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
 fi
 
 date
-# This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed her
+# This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed here
