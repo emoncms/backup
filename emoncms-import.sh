@@ -136,3 +136,5 @@ fi
 
 date
 # This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed here
+
+echo "=== Emoncms import complete! ==="
