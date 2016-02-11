@@ -47,7 +47,6 @@ fi
 #-----------------------------------------------------------------------------------------------
 
 
-
 # Get latest backup filename
 backup_filename=$((cd $backup_source_path && ls -t *.gz) | head -1)
 if [[ -z "$backup_filename" ]] #if backup does not exist (empty filename string)
@@ -66,7 +65,16 @@ if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
 fi
 
 # Uncompress backup
-tar xfz $backup_source_path/$backup_filename -C $backup_location
+echo "Decompressing backup.."
+mkdir $backup_location/import
+tar xfz $backup_source_path/$backup_filename -C $backup_location/import
+
+echo "Restore phpfina and phptimeseries data folders..."
+sudo rm -rf $mysql_path{phpfina,phptimeseries}
+sudo cp $backup_location/import/phpfina $mysql_path -rf
+sudo cp $backup_location/import/phptimeseries $mysql_path -rf
+sudo chown www-data:root $mysql_path{phpfina,phptimeseries}
+
   
   
 # Get MYSQL authentication details from settings.php
@@ -83,7 +91,7 @@ echo "Emoncms MYSQL database import..."
 if [ -n "$password" ]
 then # if username sring is not empty
     if [ -f $backup_location/emoncms.sql ]; then
-        mysql -u$username -p$password emoncms < $backup_location/emoncms.sql
+        mysql -u$username -p$password emoncms < $backup_location/import/emoncms.sql
     fi
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
@@ -92,9 +100,9 @@ fi
 
 # Save previous config settings as old.emonhub.conf and old.emoncms.conf
 echo "Import emonhub.conf > $emonhub_config_path/old.emohub.conf"
-mv $backup_location/emonhub.conf $emonhub_config_path/old.emonhub.conf
+cp $backup_location/import/emonhub.conf $emonhub_config_path/old.emonhub.conf
 echo "Import emoncms.conf > $emonhub_config_path/old.emoncms.conf"
-mv $backup_location/emoncms.conf $emoncms_config_path/old.emoncms.conf
+cp $backup_location/import/emoncms.conf $emoncms_config_path/old.emoncms.conf
 
 
 # Start with blank emonhub.conf
@@ -116,7 +124,7 @@ sudo chmod 664 $emoncms_config_path/emoncms.conf
 
 redis-cli "flushall" 2>&1
 
-echo "Restarting Services"
+echo "Restarting Services..."
 sudo service emonhub start
 sudo service feedwriter start
 if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
@@ -124,5 +132,4 @@ if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
 fi
 
 date
-# This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed here
-echo "=== Emoncms import complete! ==="
+# This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed her
