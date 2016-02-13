@@ -12,7 +12,7 @@
 
     cd ~/
     git clone https://github.com/emoncms/backup.git
-    ln -s /home/pi/backup/backup/backup /var/www/emoncms/Modules/backup
+    ln -s /home/pi/backup/backup/ /var/www/emoncms/Modules/backup
 
 Note: Ensure you are running the latest version of Emoncms on the Stable branch. A change was merged on the 9th Feb 16 that enables symlinked modules which is essential for backup module to appear in Emoncms #468
 
