@@ -26,10 +26,15 @@ The backup utility first requires service-runner to be running in the background
 
 To install service-runner add the following entry to crontab (crontab -e):
 
+    * * * * * ~/backup/service-runner >> /home/pi/data/service-runner.log 2>&1
+
+or saving log in var log
+
     * * * * * ~/backup/service-runner >> /var/log/service-runner.log 2>&1
 
-## PHP Config
+*Note: saving log in /var/log will require creating the log file and setting permissions at boot if mounting /var/log in tmpfs (default emonpi). [See entry in emonpi rc.local](https://github.com/openenergymonitor/emonpi/blob/master/rc.local_jessieminimal#L12)*
 
+## PHP Config
 
 In order to enable uploads of backup zip files we need to set the maximum upload size to be larger than the file we want to upload. This can be set system wide in `/etc/php5/apache2/php.ini`:
 
