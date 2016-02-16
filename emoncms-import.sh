@@ -47,7 +47,7 @@ fi
 
 
 # Get latest backup filename
-backup_filename=$((cd $backup_source_path && ls -t *.gz) | head -1)
+backup_filename=$((cd $backup_source_path && ls -t *tar.gz) | head -1)
 if [[ -z "$backup_filename" ]] #if backup does not exist (empty filename string)
 then
     echo "Error: cannot find backup..stopping import"
@@ -138,3 +138,4 @@ date
 # This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed here
 
 echo "=== Emoncms import complete! ==="
+sudo service apache2 restart

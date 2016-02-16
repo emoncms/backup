@@ -72,10 +72,20 @@ function backup_controller()
         // These need to be set in php.ini
         // ini_set('upload_max_filesize', '200M');
         // ini_set('post_max_size', '200M');
+        $uploadOk = 1;
         $target_path = "/home/pi/data/uploads/";
         $target_path = $target_path . basename( $_FILES['file']['name']);
+        
+        $imageFileType = pathinfo($target_path,PATHINFO_EXTENSION);
+        
+        // Allow certain file formats
+        if($imageFileType != "gz")
+        {
+            $result="Sorry, only .tar.gz files are allowed.";
+            $uploadOk = 0;
+        }
 
-        if (move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) {
+        if ((move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) && ($uploadOk == 1)) {
 
             $fh = @fopen($import_flag,"w");
             if (!$fh) {
@@ -88,7 +98,7 @@ function backup_controller()
 
             header('Location: '.$path.'backup');
         } else {
-            $result = "There was an error uploading the file, please try again!";
+            $result = "There was an error uploading the file, only .tar.gz are allowed.";
         }
     }
 
