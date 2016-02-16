@@ -58,6 +58,7 @@ pre {
         <p>Before import ensure latest version of Emoncms & emonHub.</p>
 	<p><b>*CAUTION ALL EMONCMS ACCOUNT DATA WILL BE OVERWRITTEN BY THE IMPORTETD DATA*</b></p>
         <pre id="import-log-bound"><div id="import-log"></div></pre>
+        <p>After import is complete logout then login using the imported account login details</p>
     </td>
     <td>
         <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
@@ -65,7 +66,6 @@ pre {
         <input type="file" name="file" id="file"><br><br>
         <input class="btn btn-info" type="submit" name="submit" value="Import Backup">
         </form>
-        <p>After import is complete logout then login using the imported account login details</p>
     </td>
 </tr>
 
