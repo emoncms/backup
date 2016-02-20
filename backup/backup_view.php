@@ -57,6 +57,7 @@ pre {
         <p>Import an emoncms backup archive containing the emoncms mysql database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf.</p>
         <p>Before import ensure latest version of Emoncms & emonHub.</p>
 	<p><b>*CAUTION ALL EMONCMS ACCOUNT DATA WILL BE OVERWRITTEN BY THE IMPORTETD DATA*</b></p>
+	<p>Note: If browser upload fails for large backup files fils <a href="http://github.com/emoncms/backup">see here for manual import instructions.</a> </p>
         <pre id="import-log-bound"><div id="import-log"></div></pre>
         <p>After import is complete logout then login using the imported account login details</p>
     </td>
