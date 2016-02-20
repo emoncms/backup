@@ -12,6 +12,8 @@ If importing large backup files browser upload method may fail. In this case fol
 2. Run `$ ~/backup/./emoncms-import.sh`
 3. Check logfile `$ cat ~/data/emoncms-import.log`
 
+Note: Default emonPi image has a RW ~/data partition of 150Mb, size of uncompressed backup must be less. If using an SD card > 4GB (default emonPi is 8GB) the data partiton can be expanded to fill the rest of the SD card 4GB+ using gparted tool or equivalent.
+
 
 ![image](image.png)
 
