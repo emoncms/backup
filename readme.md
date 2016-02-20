@@ -4,7 +4,17 @@
 *
 * Import compressed archive into new emonPi **(currently import via Emoncms backup web interface only work on emonPi)**
 
+# Manual Import Instructions
+
+If importing large backup files browser upload method may fail. In this case follow: 
+
+1. Copy `emoncms-backup-xxx.tar.gz` backup file to `~/data/uploads` via SSH or manual SD card copy
+2. Run `$ ~/backup/./emoncms-import.sh`
+3. Check logfile `$ cat ~/data/emoncms-import.log`
+
+
 ![image](image.png)
+
 
 # Install
  
