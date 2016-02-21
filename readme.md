@@ -1,24 +1,36 @@
 # Emoncms backup export and import tool for backup and migration
 
-* Export a compressed archive containing the Emoncms MYSQL database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf
-*
-* Import compressed archive into new emonPi **(currently import via Emoncms backup web interface only work on emonPi)**
+* Export a compressed archive containing Emoncms Inputs, Feed data, Dashboards & config. 
 
-# Manual Import Instructions
+Backup contains the Emoncms MYSQL database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf
 
-If importing large backup files browser upload method may fail. In this case follow: 
+* Import compressed archive into another Emoncms account
 
-1. Copy `emoncms-backup-xxx.tar.gz` backup file to `~/data/uploads` via SSH or manual SD card copy
-2. Run `$ ~/backup/./emoncms-import.sh`
-3. Check logfile `$ cat ~/data/emoncms-import.log`
 
-Note: Default emonPi image has a RW ~/data partition of 150Mb, size of uncompressed backup must be less. If using an SD card > 4GB (default emonPi is 8GB) the data partiton can be expanded to fill the rest of the SD card 4GB+ using gparted tool or equivalent.
+**import via Emoncms backup web interface only work on emonPi, see manual steps below**
 
+# Opperation
+
+Via Emoncms module web interface or manual (see below for manual instructions):
 
 ![image](image.png)
 
+## Manual Export Instructions
+1. Configure paths in `config.cfg` to match your system (default emonPi) 
+2. Run `$ ~/backup/./emoncms-export.sh`
 
-# Install
+## Manual Import Instructions
+
+If importing large backup files browser upload method may fail. In this case follow: 
+
+1. Configure paths in `config.cfg` to match your system (default emonPi) 
+2. Copy `emoncms-backup-xxx.tar.gz` backup file to `~/data/uploads` or whatever you have set as `data_source_path` in `config.cfg` via SSH or otherwise
+3. Run `$ ~/backup/./emoncms-import.sh`
+
+*Note: Default emonPi image has a RW ~/data partition of 150Mb, size of uncompressed backup must be less. If using an SD card > 4GB (default emonPi is 8GB) the data partition can be expanded to fill the rest of the SD card 4GB+ using gparted tool or equivalent.*
+
+
+# Emoncms Module Install
  
  Install this module in your home folder then symlink the sub-folder called backup to your emoncms Modules directory:
 
