@@ -38,7 +38,9 @@ If importing large backup files browser upload method may fail. In this case fol
     git clone https://github.com/emoncms/backup.git
     ln -s /home/pi/backup/backup/ /var/www/emoncms/Modules/backup
 
-Note: Ensure you are running the latest version of Emoncms on the Stable branch. A change was merged on the 9th Feb 16 that enables symlinked modules which is essential for backup module to appear in Emoncms #468
+**Note: Ensure you are running the latest version of Emoncms on the Stable branch. A change was merged on the 9th Feb 16 that enables symlinked modules which is essential for backup module to appear in Emoncms #468.** 
+
+**If your running the older 'low-write' branch of Emoncms emonSD-17Jun15 or before then you won't be able to update to the latest version to enable symlinks, to get around this after installing the module browse to [http://emonpi/emoncms/backup](http://emonpi/emoncms/backup)**
 
 After updating a reboot or restart of apache will be required to enable symlinked modules:
 
