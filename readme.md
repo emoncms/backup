@@ -7,7 +7,7 @@ Backup contains the Emoncms MYSQL database, phpfina, phptimeseries data files, e
 * Import compressed archive into another Emoncms account
 
 
-**import via Emoncms backup web interface only work on emonPi, see manual steps below**
+**Note: Import via Emoncms backup module web interface currently only work on emonPi, see manual steps below**
 
 # Opperation
 
