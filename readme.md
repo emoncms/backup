@@ -27,8 +27,14 @@ If importing large backup files browser upload method may fail. In this case fol
 2. Copy `emoncms-backup-xxx.tar.gz` backup file to `~/data/uploads` or whatever you have set as `data_source_path` in `config.cfg` via SSH or otherwise
 3. Run `$ ~/backup/./emoncms-import.sh`
 
-*Note: Default emonPi image has a RW ~/data partition of 150Mb, size of uncompressed backup must be less. If using an SD card > 4GB (default emonPi is 8GB) the data partition can be expanded to fill the rest of the SD card 4GB+ using gparted tool or equivalent.*
-
+*Note: Default emonPi image has a RW ~/data partition with 150Mb of free space, size of uncompressed backup must be less. If using an SD card > 4GB (default emonPi is 8GB) the data partition can be expanded to fill the rest of the SD card. The `sdpart_imagefile` can be used to automate this. **Do not use raspi-config**. 
+```
+  cd ~/usefulscripts
+  rpi-rw
+  git pull
+  sudo /home/pi/usefulscripts/sdpart/./sdpart_imagefile
+```
+Follow on screen prompts, RasPi will shutdown when process is compleate. It can take over 20min! See more info in the [usefulscripts readme](https://github.com/emoncms/usefulscripts/blob/master/readme.md). 
 
 # Emoncms Module Install
  
