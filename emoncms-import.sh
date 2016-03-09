@@ -68,13 +68,16 @@ echo "Decompressing backup.."
 mkdir $backup_location/import
 tar xfz $backup_source_path/$backup_filename -C $backup_location/import
 
-echo "Restore phpfina and phptimeseries data folders..."
-sudo rm -rf $mysql_path{phpfina,phptimeseries}
-sudo cp $backup_location/import/phpfina $mysql_path -rf
-sudo cp $backup_location/import/phptimeseries $mysql_path -rf
-sudo chown www-data:root $mysql_path{phpfina,phptimeseries}
+echo "Removing compressed backup to save disk space.."
+rm $backup_source_path/$backup_filename
 
-  
+echo "Wipe any current data from account.."
+sudo rm -rf $mysql_path{phpfina,phptimeseries}
+
+echo "Restore phpfina and phptimeseries data folders..."
+sudo mv $backup_location/import/phpfina $mysql_path -rf
+sudo mv $backup_location/import/phptimeseries $mysql_path -rf
+sudo chown www-data:root $mysql_path{phpfina,phptimeseries}
   
 # Get MYSQL authentication details from settings.php
 if [ -f ~/backup/get_emoncms_mysql_auth.php ]; then
@@ -100,6 +103,9 @@ else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
     exit 1
 fi
+
+# cleanup 
+sudo rm $backup_location/import/emoncms.sql
 
 # Save previous config settings as old.emonhub.conf and old.emoncms.conf
 echo "Import emonhub.conf > $emonhub_config_path/old.emohub.conf"
