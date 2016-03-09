@@ -98,7 +98,7 @@ function backup_controller()
 
             header('Location: '.$path.'backup');
         } else {
-            $result = "There was an error uploading the file, only .tar.gz are allowed.";
+            $result = "Sorry, there was an error uploading the file";
         }
     }
 
