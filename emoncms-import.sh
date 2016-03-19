@@ -75,10 +75,12 @@ echo "Wipe any current data from account.."
 sudo rm -rf $mysql_path{phpfina,phptimeseries}
 
 echo "Restore phpfina and phptimeseries data folders..."
-sudo mv $backup_location/import/phpfina $mysql_path -rf
-sudo mv $backup_location/import/phptimeseries $mysql_path -rf
+sudo mv $backup_location/import/phpfina $mysql_path
+sudo mv $backup_location/import/phptimeseries $mysql_path
 sudo chown www-data:root $mysql_path{phpfina,phptimeseries}
-  
+sudo chown -R www-data:root $mysql_path{phpfina,phptimeseries}
+
+
 # Get MYSQL authentication details from settings.php
 if [ -f ~/backup/get_emoncms_mysql_auth.php ]; then
     auth=$(echo $emoncms_location | php ~/backup/get_emoncms_mysql_auth.php php)
