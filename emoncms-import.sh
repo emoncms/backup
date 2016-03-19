@@ -133,18 +133,22 @@ sudo chmod 664 $emoncms_config_path/emoncms.conf
 
 redis-cli "flushall" 2>&1
 
+echo "Restarting Apache..."
+sudo service apache2 restart
+sleep 5
+
 if [ -f /home/pi/emonpi/emoncmsdbupdate.php ] then;
     echo "Update Emoncms Database"
     php /home/pi/emonpi/emoncmsdbupdate.php
 fi
 
-echo "Restart Apache"
-sudo service apache2 restart
 
-echo "Restarting Services..."
+echo "Restarting emonhub..."
 sudo service emonhub start
+echo "Restarting feedwriter..."
 sudo service feedwriter start
 if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
+    echo "Restarting emoncms-nodes-service..."
     sudo service emoncms-nodes-service start
 fi
 
