@@ -135,15 +135,10 @@ sudo chmod 664 $emoncms_config_path/emoncms.conf
 
 redis-cli "flushall" 2>&1
 
-echo "Restarting Apache..."
-sudo service apache2 restart
-sleep 5
-
-if [ -f /home/pi/emonpi/emoncmsdbupdate.php ] then;
+if [ -f /home/pi/emonpi/emoncmsdbupdate.php ]; then
     echo "Update Emoncms Database"
     php /home/pi/emonpi/emoncmsdbupdate.php
 fi
-
 
 echo "Restarting emonhub..."
 sudo service emonhub start
@@ -156,6 +151,5 @@ fi
 
 date
 # This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed here
-
 echo "=== Emoncms import complete! ==="
 sudo service apache2 restart
