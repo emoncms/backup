@@ -77,8 +77,8 @@ sudo rm -rf $mysql_path{phpfina,phptimeseries}
 echo "Restore phpfina and phptimeseries data folders..."
 sudo mv $backup_location/import/phpfina $mysql_path
 sudo mv $backup_location/import/phptimeseries $mysql_path
-sudo chown www-data:root $mysql_path{phpfina,phptimeseries}
-sudo chown -R www-data:root $mysql_path{phpfina,phptimeseries}
+sudo chown www-data:root $mysql_path/{phpfina,phptimeseries}
+sudo chown -R www-data:root $mysql_path/{phpfina,phptimeseries}
 
 
 # Get MYSQL authentication details from settings.php
