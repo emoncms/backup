@@ -2,9 +2,6 @@
     global $path;
 ?>
 
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/backup/upload.js"></script>
-  <link href="<?php echo $path;?>Modules/backup/upload.css" rel="stylesheet" type="text/css" />
-
 <style>
 pre {
     width:80%;
