@@ -75,9 +75,7 @@ function backup_controller()
         $uploadOk = 1;
         $target_path = "/home/pi/data/uploads/";
         $target_path = $target_path . basename( $_FILES['file']['name']);
-        
         $imageFileType = pathinfo($target_path,PATHINFO_EXTENSION);
-        
         // Allow certain file formats
         if($imageFileType != "gz")
         {
@@ -87,20 +85,20 @@ function backup_controller()
 
         if ((move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) && ($uploadOk == 1)) {
 
-            $fh = @fopen($import_flag,"w");
-            if (!$fh) {
-                $result = "ERROR: Can't write the flag $import_flag.";
-            } else {
-                fwrite($fh,"$import_script>$import_logfile");
-                $result = "Backup flag set";
-            }
-            @fclose($fh);
+            //$fh = @fopen($import_flag,"w");
+            //if (!$fh) {
+            //    $result = "ERROR: Can't write the flag $import_flag.";
+            //} else {
+          //      fwrite($fh,"$import_script>$import_logfile");
+          //      $result = "Backup flag set";
+          //  }
+          //  @fclose($fh);
 
-            header('Location: '.$path.'backup');
+          //  header('Location: '.$path.'backup');
+          $result = "File uploaded";
         } else {
             $result = "Sorry, there was an error uploading the file";
         }
     }
-
     return array('content'=>$result);
 }

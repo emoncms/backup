@@ -2,6 +2,8 @@
     global $path;
 ?>
 
+<script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/backup/upload.js"></script>
+  <link href="<?php echo $path;?>Modules/backup/upload.css" rel="stylesheet" type="text/css" />
 
 <style>
 pre {
@@ -67,6 +69,35 @@ pre {
         <input type="file" name="file" id="file"><br><br>
         <input class="btn btn-info" type="submit" name="submit" value="Import Backup">
         </form>
+
+        <form id="upload_form" enctype="multipart/form-data" method="post" action="<?php echo $path; ?>Modules/backup/upload.php">
+        <input type="file" name="upload_file" id="upload_file" onchange="fileSelected();" />
+        <input type="button" value="Import" onclick="startUploading()" />
+
+        <div id="fileinfo">
+            <div id="filename"></div>
+            <div id="filesize"></div>
+            <div id="filetype"></div>
+            <div id="filedim"></div>
+        </div>
+
+        <div id="error">ERROR: Please select valid tar.gz Emoncms backup file</div>
+        <div id="error2">An error occurred while uploading the file</div>
+        <div id="abort">The upload has been canceled by the user or the browser dropped the connection</div>
+        <div id="warnsize">Your file is very big. We can't accept it.</div>
+
+        <div id="progress_info">
+            <div id="progress"></div>
+            <div id="progress_percent">&nbsp;</div>
+            <div class="clear_both"></div>
+            <div>
+                <div id="speed">&nbsp;</div>
+                <div id="remaining">&nbsp;</div>
+                <div id="b_transfered">&nbsp;</div>
+                <div class="clear_both"></div>
+            </div>
+            <div id="upload_response"></div>
+
     </td>
 </tr>
 
