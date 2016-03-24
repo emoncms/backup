@@ -72,7 +72,7 @@ pre {
 
         <form id="upload_form" enctype="multipart/form-data" method="post" action="<?php echo $path; ?>Modules/backup/upload.php">
         <input type="file" name="upload_file" id="upload_file" onchange="fileSelected();" />
-        <input type="button" value="Import" onclick="startUploading()" />
+        <input class="btn btn-info" type="submit" value="Import" onclick="startUploading()" />
 
         <div id="fileinfo">
             <div id="filename"></div>

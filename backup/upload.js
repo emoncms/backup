@@ -29,7 +29,6 @@ function bytesToSize(bytes) {
 function fileSelected() {
 
     // hide different warnings
-    console.log("selcted");
     document.getElementById('upload_response').style.display = 'none';
     document.getElementById('error').style.display = 'none';
     document.getElementById('error2').style.display = 'none';
@@ -43,27 +42,25 @@ function fileSelected() {
     var rFilter = /^(application\/gzip)$/i;
     if (! rFilter.test(oFile.type)) {
         document.getElementById('error');
-        error =1;
+        error = 1;
         return;
     }
     else {
-      error=0;
+      error = 0;
     }
 
     // little test for filesize
     if (oFile.size > iMaxFilesize) {
         document.getElementById('warnsize');
-        error =1;
+        error = 1;
         return;
     }
     else {
-      error=0;
+      error = 0;
     }
 
+    oReader.readAsDataURL(oFile);
 
-
-    // read selected file as DataURL
-    //oReader.readAsDataURL(oFile);
 }
 
 function startUploading() {

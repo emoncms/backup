@@ -15,8 +15,8 @@ $uploads_dir = '/home/pi/data/uploads';
 
 if (is_uploaded_file($_FILES['upload_file']['tmp_name'])) {
    echo "<p>File: ". $sFileName." uploaded successfully</p>";
-   echo "<p>Size: ". $sFileType."</p>";
-   echo "<p>Type: ". $sFileSize."</p>";
+   echo "<p>Size: ". $sFileSize."</p>";
+   echo "<p>Type: ". $sFileType."</p>";
    move_uploaded_file($_FILES['upload_file']['tmp_name']  , "$uploads_dir/$sFileName");
 } else {
    echo "Error: file". $sFileName." not uploaded";
