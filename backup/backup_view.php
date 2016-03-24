@@ -2,6 +2,8 @@
     global $path;
 ?>
 
+<script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/backup/upload.js"></script>
+  <link href="<?php echo $path;?>Modules/backup/upload.css" rel="stylesheet" type="text/css" />
 
 <style>
 pre {
@@ -63,7 +65,6 @@ pre {
     </td>
     <td>
         <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
-        <input type="hidden" name="MAX_FILE_SIZE" value="20971520" />
         <input type="file" name="file" id="file"><br><br>
         <input class="btn btn-info" type="submit" name="submit" value="Import Backup">
         </form>
