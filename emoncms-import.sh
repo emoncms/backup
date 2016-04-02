@@ -1,4 +1,4 @@
-#!/bin/bash
+    #!/bin/bash
 backup_source_path="/home/pi/data/uploads"
 data_path="/home/pi/data"
 
@@ -72,7 +72,7 @@ echo "Removing compressed backup to save disk space.."
 rm $backup_source_path/$backup_filename
 
 echo "Wipe any current data from account.."
-sudo rm -rf $mysql_path{phpfina,phptimeseries}
+sudo rm -rf $mysql_path/{phpfina,phptimeseries}
 
 echo "Restore phpfina and phptimeseries data folders..."
 sudo mv $backup_location/import/phpfina $mysql_path
@@ -106,14 +106,14 @@ else
     exit 1
 fi
 
-# cleanup 
+# cleanup
 sudo rm $backup_location/import/emoncms.sql
 
 # Save previous config settings as old.emonhub.conf and old.emoncms.conf
 echo "Import emonhub.conf > $emonhub_config_path/old.emohub.conf"
-cp $backup_location/import/emonhub.conf $emonhub_config_path/old.emonhub.conf
+mv $backup_location/import/emonhub.conf $emonhub_config_path/old.emonhub.conf
 echo "Import emoncms.conf > $emonhub_config_path/old.emoncms.conf"
-cp $backup_location/import/emoncms.conf $emoncms_config_path/old.emoncms.conf
+mv $backup_location/import/emoncms.conf $emoncms_config_path/old.emoncms.conf
 
 
 # Start with blank emonhub.conf
