@@ -11,7 +11,7 @@ Backup contains the Emoncms MYSQL database, phpfina, phptimeseries data files, e
 
 # Opperation
 
-Via Emoncms module web interface or manual (see below for manual instructions):
+Via Emoncms module web interface [(see video screencasrt guide)](https://www.youtube.com/watch?v=5U_tOlsWjXM) or manual (see below for manual instructions):
 
 ![image](image.png)
 
