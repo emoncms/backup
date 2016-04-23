@@ -4,7 +4,7 @@ date=$(date +"%Y-%m-%d")
 
 echo "=== Emoncms export start ==="
 date
-echo "Reading ~/backup/config.cfg...."
+echo "Reading /home/pi/backup/config.cfg...."
 if [ -f /home/pi/backup/config.cfg ]
 then
     source /home/pi/backup/config.cfg
@@ -44,8 +44,8 @@ fi
 sudo service feedwriter stop
 
 # Get MYSQL authentication details from settings.php
-if [ -f ~/backup/get_emoncms_mysql_auth.php ]; then
-    auth=$(echo $emoncms_location | php ~/backup/get_emoncms_mysql_auth.php php)
+if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
+    auth=$(echo $emoncms_location | php /home/pi/backup/get_emoncms_mysql_auth.php php)
     IFS=":" read username password <<< "$auth"
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
