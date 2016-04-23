@@ -5,16 +5,16 @@ date=$(date +"%Y-%m-%d")
 echo "=== Emoncms export start ==="
 date
 echo "Reading ~/backup/config.cfg...."
-if [ -f ~/backup/config.cfg ]
+if [ -f /home/pi/backup/config.cfg ]
 then
-    source ~/backup/config.cfg
+    source /home/pi/backup/config.cfg
     echo "Location of mysql database: $mysql_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
     echo "Location of emoncms.conf: $emoncms_config_path"
     echo "Location of Emoncms: $emoncms_location"
     echo "Backup destination: $backup_location"
 else
-    echo "ERROR: Backup ~/backup/config.cfg file does not exist"
+    echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
     exit 1
 fi
 
