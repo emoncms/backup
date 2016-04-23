@@ -74,7 +74,7 @@ echo "Compressing archive..."
 gzip -f $backup_location/emoncms-backup-$date.tar
 
 
-sudo service feedwriter start
+sudo service feedwriter start > /dev/null
 
 echo "Backup saved: $backup_location/emoncms-backup-$date.tar.gz"
 date
