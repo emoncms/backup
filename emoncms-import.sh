@@ -6,7 +6,7 @@ echo "=== Emoncms import start ==="
 
 date
 
-echo "Reading ~/backup/config.cfg...."
+echo "Reading /home/pi/backup/config.cfg...."
 if [ -f /home/pi/backup/config.cfg ]
 then
     source ~/backup/config.cfg
@@ -17,7 +17,7 @@ then
     echo "Backup destination: $backup_location"
     echo "Backup source path: $backup_source_path"
 else
-    echo "ERROR: Backup ~/backup/config.cfg file does not exist"
+    echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
     exit 1
 fi
 
@@ -83,7 +83,7 @@ sudo chown -R www-data:root $mysql_path/{phpfina,phptimeseries}
 
 # Get MYSQL authentication details from settings.php
 if [ -f ~/backup/get_emoncms_mysql_auth.php ]; then
-    auth=$(echo $emoncms_location | php ~/backup/get_emoncms_mysql_auth.php php)
+    auth=$(echo $emoncms_location | php /home/pi/backup/get_emoncms_mysql_auth.php php)
     IFS=":" read username password <<< "$auth"
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
