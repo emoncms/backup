@@ -7,7 +7,7 @@ echo "=== Emoncms import start ==="
 date
 
 echo "Reading ~/backup/config.cfg...."
-if [ -f ~/backup/config.cfg ]
+if [ -f /home/pi/backup/config.cfg ]
 then
     source ~/backup/config.cfg
     echo "Location of mysql database: $mysql_path"
@@ -69,7 +69,7 @@ mkdir $backup_location/import
 tar xfz $backup_source_path/$backup_filename -C $backup_location/import
 
 echo "Removing compressed backup to save disk space.."
-rm $backup_source_path/$backup_filename
+sudo rm $backup_source_path/$backup_filename
 
 echo "Wipe any current data from account.."
 sudo rm -rf $mysql_path/{phpfina,phptimeseries}
