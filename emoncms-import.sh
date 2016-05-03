@@ -9,7 +9,7 @@ date
 echo "Reading /home/pi/backup/config.cfg...."
 if [ -f /home/pi/backup/config.cfg ]
 then
-    source ~/backup/config.cfg
+    source /home/pi/backup/config.cfg
     echo "Location of mysql database: $mysql_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
     echo "Location of emoncms.conf: $emoncms_config_path"
@@ -82,7 +82,7 @@ sudo chown -R www-data:root $mysql_path/{phpfina,phptimeseries}
 
 
 # Get MYSQL authentication details from settings.php
-if [ -f ~/backup/get_emoncms_mysql_auth.php ]; then
+if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
     auth=$(echo $emoncms_location | php /home/pi/backup/get_emoncms_mysql_auth.php php)
     IFS=":" read username password <<< "$auth"
 else
@@ -100,7 +100,6 @@ then # if username sring is not empty
         "Error: cannot find emoncms.sql database to import"
         exit 1
     fi
-    
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
     exit 1
