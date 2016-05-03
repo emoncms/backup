@@ -56,32 +56,7 @@ fi
 # if backup exists
 echo "Backup found: $backup_filename starting import.."
 
-
-sudo service emonhub stop
-sudo service feedwriter stop
-if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
-    sudo service emoncms-nodes-service stop
-fi
-
-# Uncompress backup
-echo "Decompressing backup.."
-mkdir $backup_location/import
-tar xfz $backup_source_path/$backup_filename -C $backup_location/import
-
-echo "Removing compressed backup to save disk space.."
-sudo rm $backup_source_path/$backup_filename
-
-echo "Wipe any current data from account.."
-sudo rm -rf $mysql_path/{phpfina,phptimeseries}
-
-echo "Restore phpfina and phptimeseries data folders..."
-sudo mv $backup_location/import/phpfina $mysql_path
-sudo mv $backup_location/import/phptimeseries $mysql_path
-sudo chown www-data:root $mysql_path/{phpfina,phptimeseries}
-sudo chown -R www-data:root $mysql_path/{phpfina,phptimeseries}
-
-
-# Get MYSQL authentication details from settings.php
+echo "Read MYSQL authentication details from settings.php"
 if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
     auth=$(echo $emoncms_location | php /home/pi/backup/get_emoncms_mysql_auth.php php)
     IFS=":" read username password <<< "$auth"
@@ -91,10 +66,25 @@ else
     exit 1
 fi
 
-echo "Emoncms MYSQL database import..."
+
+echo "Decompressing backup.."
+mkdir $backup_location/import
+tar xfz $backup_source_path/$backup_filename -C $backup_location/import
+
+echo "Removing compressed backup to save disk space.."
+sudo rm $backup_source_path/$backup_filename
+
 if [ -n "$password" ]
 then # if username sring is not empty
     if [ -f $backup_location/import/emoncms.sql ]; then
+        echo "Stopping services.."
+        sudo service emonhub stop
+        sudo service feedwriter stop
+        sudo service mqtt_input stop
+        if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
+            sudo service emoncms-nodes-service stop
+        fi
+        echo "Emoncms MYSQL database import..."
         mysql -u$username -p$password emoncms < $backup_location/import/emoncms.sql
     else
         "Error: cannot find emoncms.sql database to import"
@@ -104,6 +94,15 @@ else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
     exit 1
 fi
+
+echo "Import feed meta data.."
+sudo rm -rf $mysql_path/{phpfina,phptimeseries}
+
+echo "Restore phpfina and phptimeseries data folders..."
+sudo mv $backup_location/import/phpfina $mysql_path
+sudo mv $backup_location/import/phptimeseries $mysql_path
+sudo chown www-data:root $mysql_path/{phpfina,phptimeseries}
+sudo chown -R www-data:root $mysql_path/{phpfina,phptimeseries}
 
 # cleanup
 sudo rm $backup_location/import/emoncms.sql
@@ -135,7 +134,7 @@ sudo chmod 664 $emoncms_config_path/emoncms.conf
 redis-cli "flushall" 2>&1
 
 if [ -f /home/pi/emonpi/emoncmsdbupdate.php ]; then
-    echo "Update Emoncms Database"
+    echo "Updating Emoncms Database.."
     php /home/pi/emonpi/emoncmsdbupdate.php
 fi
 
@@ -143,6 +142,8 @@ echo "Restarting emonhub..."
 sudo service emonhub start
 echo "Restarting feedwriter..."
 sudo service feedwriter start
+echo "Restarting MQTT input..."
+sudo service mqtt_input start
 if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
     echo "Restarting emoncms-nodes-service..."
     sudo service emoncms-nodes-service start
