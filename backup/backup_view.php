@@ -58,7 +58,8 @@ pre {
 	<p><b>*CAUTION ALL EMONCMS ACCOUNT DATA WILL BE OVERWRITTEN BY THE IMPORTETD DATA*</b></p>
 	<p>Note: If browser upload fails for large backup files <a href="http://github.com/emoncms/backup">follow manual import instructions.</a> </p>
         <pre id="import-log-bound"><div id="import-log"></div></pre>
-        <p>After import is complete logout then login using the imported account login details</p>
+        <br>
+        <p>Refresh page if log window is not updating. After import is complete logout then log back in using the imported account login details.</p>
     </td>
     <td>
         <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
