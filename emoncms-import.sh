@@ -47,7 +47,7 @@ fi
 
 
 # Get latest backup filename
-backup_filename=$((cd $backup_source_path && ls -t *tar.gz) | head -1)
+backup_filename=$((cd $backup_source_path && ls -t *.tar.gz) | head -1)
 if [[ -z "$backup_filename" ]] #if backup does not exist (empty filename string)
 then
     echo "Error: cannot find backup..stopping import"
