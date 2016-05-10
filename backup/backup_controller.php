@@ -83,23 +83,25 @@ function backup_controller()
         {
             $result="Sorry, only .tar.gz files are allowed.";
             $uploadOk = 0;
-        }
 
-        if ((move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) && ($uploadOk == 1)) {
+            if ((move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) && ($uploadOk == 1)) {
 
-            $fh = @fopen($import_flag,"w");
-            if (!$fh) {
-                $result = "ERROR: Can't write the flag $import_flag.";
+                $fh = @fopen($import_flag,"w");
+                if (!$fh) {
+                    $result = "ERROR: Can't write the flag $import_flag.";
+                } else {
+                    fwrite($fh,"$import_script>$import_logfile");
+                    $result = "Backup flag set";
+                }
+                @fclose($fh);
+
+                header('Location: '.$path.'backup');
             } else {
-                fwrite($fh,"$import_script>$import_logfile");
-                $result = "Backup flag set";
+                $result = "Sorry, there was an error uploading the file";
             }
-            @fclose($fh);
-
-            header('Location: '.$path.'backup');
-        } else {
-            $result = "Sorry, there was an error uploading the file";
         }
+
+
     }
 
     return array('content'=>$result);
