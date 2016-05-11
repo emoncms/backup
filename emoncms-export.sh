@@ -19,6 +19,20 @@ else
 fi
 
 #-----------------------------------------------------------------------------------------------
+# Remove Old backup files
+#-----------------------------------------------------------------------------------------------
+if [ -f $backup_location/emoncms.sql ]
+then
+    sudo rm $backup_location/emoncms.sql
+fi
+
+if [ -f $backup_location/emoncms-backup-$date.tar ]
+then
+    sudo rm $backup_location/emoncms-backup-$date.tar
+fi
+
+
+#-----------------------------------------------------------------------------------------------
 # Check emonPi / emonBase image version
 #-----------------------------------------------------------------------------------------------
 image_version=$(ls /boot | grep emonSD)
