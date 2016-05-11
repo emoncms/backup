@@ -3,9 +3,8 @@ backup_source_path="/home/pi/data/uploads"
 data_path="/home/pi/data"
 
 echo "=== Emoncms import start ==="
-
 date
-
+echo "EUID: $EUID"
 echo "Reading /home/pi/backup/config.cfg...."
 if [ -f /home/pi/backup/config.cfg ]
 then
