@@ -69,6 +69,7 @@ fi
 
 echo "Decompressing backup.."
 mkdir $backup_location/import
+sudo chown pi $backup_location/import -R
 tar xfz $backup_source_path/$backup_filename -C $backup_location/import
 
 echo "Removing compressed backup to save disk space.."
