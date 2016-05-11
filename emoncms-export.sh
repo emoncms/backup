@@ -4,6 +4,7 @@ date=$(date +"%Y-%m-%d")
 
 echo "=== Emoncms export start ==="
 date
+echo "EUID: $EUID"
 echo "Reading /home/pi/backup/config.cfg...."
 if [ -f /home/pi/backup/config.cfg ]
 then
