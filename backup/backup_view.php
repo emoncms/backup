@@ -44,7 +44,7 @@ pre {
         $backup_filename="emoncms-backup-".date("Y-m-d").".tar.gz";
         if (file_exists("/home/pi/data/$backup_filename") && !file_exists("/tmp/backuplock"))
         {
-            echo '<br><br><b>Download ready:</b><br><a href="'.$path.'backup/download">Download Backup</a>';
+            echo '<br><br><b>Right Click > Download:</b><br><a href="'.$path.'backup/download">'.$backup_filename.'</a>';
         }
         ?>
     </td>
