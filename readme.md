@@ -1,15 +1,18 @@
-# Emoncms backup export and import tool for backup and migration
+
+## Emoncms backup export and import tool for backup and migration
 
 * Export a compressed archive containing Emoncms Inputs, Feed data, Dashboards & config. 
 
-Backup contains the Emoncms MYSQL database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf
+*Backup contains the Emoncms MYSQL database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf*
 
 * Import compressed archive into another Emoncms account
 
 
 **Note: Import via Emoncms backup module web interface currently only work on emonPi, see manual steps below**
 
-# Opperation
+# Operation
+
+# [Backup module User Guide](https://guide.openenergymonitor.org/setup/import/)
 
 Via Emoncms module web interface [(see video screencasrt guide)](https://www.youtube.com/watch?v=5U_tOlsWjXM) or manual (see below for manual instructions):
 
