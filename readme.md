@@ -1,7 +1,7 @@
 
 ## Emoncms backup export and import tool for backup and migration
 
-* Export a compressed archive containing Emoncms Inputs, Feed data, Dashboards & config. 
+* Export a compressed archive containing Emoncms Inputs, Feed data, Dashboards & config.
 
 *Backup contains the Emoncms MYSQL database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf*
 
@@ -12,32 +12,33 @@
 
 # Operation
 
-# [Backup module User Guide](https://guide.openenergymonitor.org/setup/import/)
+## [Backup module User Guide](https://guide.openenergymonitor.org/setup/import/)
 
-Via Emoncms module web interface [(see video screencasrt guide)](https://www.youtube.com/watch?v=5U_tOlsWjXM) or manual (see below for manual instructions):
+Via Emoncms module web interface [(see video screencast guide)](https://www.youtube.com/watch?v=5U_tOlsWjXM) or manual (see below for manual instructions):
 
 ![image](image.png)
 
 ## Manual Export Instructions
-1. Configure paths in `config.cfg` to match your system (default emonPi) 
+
+1. Configure paths in `config.cfg` to match your system (default emonPi)
 2. Run `$ ~/backup/./emoncms-export.sh`
 
 ## Manual Import Instructions
 
-If importing large backup files browser upload method may fail. In this case follow: 
+If importing large backup files browser upload method may fail. In this case follow:
 
-1. Configure paths in `config.cfg` to match your system (default emonPi) 
+1. Configure paths in `config.cfg` to match your system (default emonPi)
 2. Copy `emoncms-backup-xxx.tar.gz` backup file to `~/data/uploads` or whatever you have set as `data_source_path` in `config.cfg` via SSH or otherwise
 3. Run `$ ~/backup/./emoncms-import.sh`
 
-*Note: Default emonPi image has a RW ~/data partition with 150Mb of free space, size of uncompressed backup must be less. If using an SD card > 4GB (default emonPi is 8GB) the data partition can be expanded to fill the rest of the SD card. The `sdpart_imagefile` can be used to automate this. **Do not use raspi-config**. 
+*Note: Default emonPi image has a RW ~/data partition with 150Mb of free space, size of uncompressed backup must be less. If using an SD card > 4GB (default emonPi is 8GB) the data partition can be expanded to fill the rest of the SD card. The `sdpart_imagefile` can be used to automate this. **Do not use raspi-config**.
 ```
   cd ~/usefulscripts
   rpi-rw
   git pull
   sudo /home/pi/usefulscripts/sdpart/./sdpart_imagefile
 ```
-Follow on screen prompts, RasPi will shutdown when process is compleate. It can take over 20min! See more info in the [usefulscripts readme](https://github.com/emoncms/usefulscripts/blob/master/readme.md). 
+Follow on screen prompts, RasPi will shutdown when process is compleate. It can take over 20min! See more info in the [usefulscripts readme](https://github.com/emoncms/usefulscripts/blob/master/readme.md).
 
 # Emoncms Module Install
  
@@ -47,7 +48,7 @@ Follow on screen prompts, RasPi will shutdown when process is compleate. It can 
     git clone https://github.com/emoncms/backup.git
     ln -s /home/pi/backup/backup/ /var/www/emoncms/Modules/backup
 
-**Note: Ensure you are running the latest version of Emoncms on the Stable branch. A change was merged on the 9th Feb 16 that enables symlinked modules which is essential for backup module to appear in Emoncms #468.** 
+**Note: Ensure you are running the latest version of Emoncms on the Stable branch. A change was merged on the 9th Feb 16 that enables symlinked modules which is essential for backup module to appear in Emoncms #468.**
 
 **If your running the older 'low-write' branch of Emoncms emonSD-17Jun15 or before then you won't be able to update to the latest version to enable symlinks, to get around this after installing the module browse to [http://emonpi/emoncms/backup](http://emonpi/emoncms/backup)**
 
