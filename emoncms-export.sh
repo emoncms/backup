@@ -79,7 +79,7 @@ fi
 echo "Emoncms MYSQL database dump complete, adding files to archive .."
 
 # Create backup archive and add config files stripping out the path
-tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf --transform 's?.*/??g'
+tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php --transform 's?.*/??g'
 
 # Append database folder to the archive with absolute path
 tar --append --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries
