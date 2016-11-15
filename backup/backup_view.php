@@ -64,7 +64,7 @@ pre {
     <td>
         <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
         <input type="file" name="file" id="file"><br><br>
-        <input class="btn btn-info" type="submit" name="submit" value="Import Backup">
+        <input class="btn btn-danger" type="submit" name="submit" value="Import Backup">
         </form>
     </td>
 </tr>
