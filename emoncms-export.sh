@@ -17,7 +17,7 @@ then
 else
     echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
     exit 1
-fi  
+fi
 
 #-----------------------------------------------------------------------------------------------
 # Remove Old backup files
@@ -86,12 +86,26 @@ fi
 
 echo "Emoncms MYSQL database dump complete, adding files to archive .."
 
-# Create backup archive and add config files stripping out the path
-tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g' 2>&1
-if [ $? -ne 0 ]; then
-    echo "Error: failed to tar config data"
-    echo "emoncms export failed"
-    exit 1
+if [ $image="old" ];
+  # Create backup archive and add config files stripping out the path
+  # Old image  = don't backup nodeRED config (since nodeRED doesnot exist)
+  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
+  if [ $? -ne 0 ]; then
+      echo "Error: failed to tar config data"
+      echo "emoncms export failed"
+      exit 1
+  fi
+fi
+
+if [ $image="new" ];
+  # Create backup archive and add config files stripping out the path
+  # New image = backup NodeRED
+  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g' 2>&1
+  if [ $? -ne 0 ]; then
+      echo "Error: failed to tar config data"
+      echo "emoncms export failed"
+      exit 1
+  fi
 fi
 
 # Append database folder to the archive with absolute path
