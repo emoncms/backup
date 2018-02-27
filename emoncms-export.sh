@@ -1,23 +1,27 @@
 #!/bin/bash
+script_location="`dirname $0`"
 
 date=$(date +"%Y-%m-%d")
 
 echo "=== Emoncms export start ==="
 date
 echo "EUID: $EUID"
-echo "Reading /home/pi/backup/config.cfg...."
-if [ -f /home/pi/backup/config.cfg ]
+echo "Reading $script_location/backup/config.cfg...."
+if [ -f "$script_location/backup/config.cfg" ]
 then
-    source /home/pi/backup/config.cfg
-    echo "Location of mysql database: $mysql_path"
+    source "$script_location/backup/config.cfg"
+    echo "Location of databases: $database_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
     echo "Location of emoncms.conf: $emoncms_config_path"
     echo "Location of Emoncms: $emoncms_location"
     echo "Backup destination: $backup_location"
 else
-    echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
+    echo "ERROR: Backup $script_location/backup/config.cfg file does not exist"
     exit 1
 fi
+
+module_location="${emoncms_location}/Modules/backup"
+echo "emoncms backup module location $module_location"
 
 #-----------------------------------------------------------------------------------------------
 # Remove Old backup files
@@ -58,14 +62,14 @@ fi
 
 
 
-sudo service feedwriter stop
+# sudo service feedwriter stop
 
 # Get MYSQL authentication details from settings.php
-if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
-    auth=$(echo $emoncms_location | php /home/pi/backup/get_emoncms_mysql_auth.php php)
+if [ -f $script_location/get_emoncms_mysql_auth.php ]; then
+    auth=$(echo $emoncms_location | php $script_location/get_emoncms_mysql_auth.php php)
     IFS=":" read username password <<< "$auth"
 else
-    echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
+    echo "Error: cannot read MYSQL authentication details from Emoncms $script_location/get_emoncms_mysql_auth.php php & settings.php"
     echo "$PWD"
     exit 1
 fi
@@ -86,34 +90,85 @@ fi
 
 echo "Emoncms MYSQL database dump complete, adding files to archive .."
 
-if [ $image="old" ]; then
+if [ -f $backup_location/emoncms.sql ]
+then
+  tar --append --file=$backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql
+else
+    echo "no file $backup_location/emoncms.sql"
+fi
+
+if [ -f $emonhub_config_path/emonhub.conf ]
+then
+  tar --append --file=$backup_location/emoncms-backup-$date.tar $emonhub_config_path/emonhub.conf
+else
+    echo "no file $emonhub_config_path/emonhub.conf"
+fi
+
+if [ -f $emoncms_config_path/emoncms.conf ]
+then
+  tar --append --file=$backup_location/emoncms-backup-$date.tar $emoncms_config_path/emoncms.conf
+else
+    echo "no file $emoncms_config_path/emoncms.conf"
+fi
+
+if [ -f $emoncms_location/settings.php ]
+then
+  tar --append --file=$backup_location/emoncms-backup-$date.tar $emoncms_location/settings.php
+else
+    echo "no file $emoncms_location/settings.php"
+fi
+
+#if [ $image="old" ]; then
   # Create backup archive and add config files stripping out the path
   # Old image  = don't backup nodeRED config (since nodeRED doesnot exist)
-  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
-  if [ $? -ne 0 ]; then
-      echo "Error: failed to tar config data"
-      echo "emoncms export failed"
-      exit 1
-  fi
-fi
+#  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql  $emoncms_config_path/emoncms.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
+#  if [ $? -ne 0 ]; then
+#      echo "Error: failed to tar config data"
+#      echo "emoncms export failed"
+#      exit 1
+#  fi
+#fi
 
-if [ $image="new" ]; then
+#if [ $image="new" ]; then
   # Create backup archive and add config files stripping out the path
   # New image = backup NodeRED
-  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g' 2>&1
-  if [ $? -ne 0 ]; then
-      echo "Error: failed to tar config data"
-      echo "emoncms export failed"
-      exit 1
-  fi
-fi
+#  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g' 2>&1
+#  if [ $? -ne 0 ]; then
+#      echo "Error: failed to tar config data"
+#      echo "emoncms export failed"
+#      exit 1
+#  fi
+#fi
 
 # Append database folder to the archive with absolute path
-tar --append --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries 2>&1
-if [ $? -ne 0 ]; then
-    echo "Error: failed to tar mysql dump and data"
-    echo "emoncms export failed"
-    exit 1
+if [ -d $database_path/phpfina ]
+then
+  tar --append --file=$backup_location/emoncms-backup-$date.tar -C $database_path phpfina 2>&1
+  if [ $? -ne 0 ]; then
+    echo "Error: failed to tar phpfina"
+  fi
+else
+    echo "no phpfina directory"
+fi
+
+if [ -d $database_path/phpfiwa ]
+then
+  tar --append --file=$backup_location/emoncms-backup-$date.tar -C $database_path phpfiwa 2>&1
+  if [ $? -ne 0 ]; then
+    echo "Error: failed to tar phpfiwa"
+  fi
+else
+    echo "no phpfiwa directory"
+fi
+
+if [ -d $database_path/phptimeseries ]
+then
+  tar --append --file=$backup_location/emoncms-backup-$date.tar -C $database_path phptimeseries 2>&1
+  if [ $? -ne 0 ]; then
+    echo "Error: failed to tar phptimeseries"
+  fi
+else
+    echo "no phptimeseries directory $database_path/phptimeseries"
 fi
 
 # Compress backup
@@ -125,9 +180,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-sudo service feedwriter start > /dev/null
-
-echo "Backup saved: $backup_location/emoncms-backup-$date.tar.gz"
+#sudo service feedwriter start > /dev/null
+echo "Contents of Backup: $backup_location/emoncms-backup-$date.tar.gz"
+tar -tvf $backup_location/emoncms-backup-2018-02-26.tar.gz
 date
 echo "Export finished...refresh page to view download link"
 echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here

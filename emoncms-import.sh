@@ -1,23 +1,22 @@
 #!/bin/bash
 
-backup_source_path="/home/pi/data/uploads"
-data_path="/home/pi/data"
+script_location="`dirname $0`"
 
 echo "=== Emoncms import start ==="
 date +"%Y-%m-%d-%T"
 echo "EUID: $EUID"
-echo "Reading /home/pi/backup/config.cfg...."
-if [ -f /home/pi/backup/config.cfg ]
+echo "Reading $script_location/backup/config.cfg...."
+if [ -f "$script_location/backup/config.cfg" ]
 then
-    source /home/pi/backup/config.cfg
-    echo "Location of mysql database: $mysql_path"
+    source "$script_location/backup/config.cfg"
+    echo "Location of data databases: $database_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
     echo "Location of emoncms.conf: $emoncms_config_path"
     echo "Location of Emoncms: $emoncms_location"
     echo "Backup destination: $backup_location"
     echo "Backup source path: $backup_source_path"
 else
-    echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
+    echo "ERROR: Backup $script_location/backup/config.cfg file does not exist"
     exit 1
 fi
 
@@ -64,8 +63,8 @@ fi
 echo "Backup found: $backup_filename starting import.."
 
 echo "Read MYSQL authentication details from settings.php"
-if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
-    auth=$(echo $emoncms_location | php /home/pi/backup/get_emoncms_mysql_auth.php php)
+if [ -f $script_location/get_emoncms_mysql_auth.php ]; then
+    auth=$(echo $emoncms_location | php $script_location/get_emoncms_mysql_auth.php php)
     IFS=":" read username password <<< "$auth"
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
@@ -120,17 +119,17 @@ else
 fi
 
 echo "Import feed meta data.."
-sudo rm -rf $mysql_path/{phpfina,phptimeseries} 2> /dev/null
+sudo rm -rf $database_path/{phpfina,phptimeseries} 2> /dev/null
 
 echo "Restore phpfina and phptimeseries data folders..."
 if [ -d $backup_location/import/phpfina ]; then
-	sudo mv $backup_location/import/phpfina $mysql_path
-	sudo chown -R www-data:root $mysql_path/phpfina
+	sudo mv $backup_location/import/phpfina $database_path
+	sudo chown -R www-data:root $database_path/phpfina
 fi
 
 if [ -d  $backup_location/import/phptimeseries ]; then
-	sudo mv $backup_location/import/phptimeseries $mysql_path
-	sudo chown -R www-data:root $mysql_path/phptimeseries
+	sudo mv $backup_location/import/phptimeseries $database_path
+	sudo chown -R www-data:root $database_path/phptimeseries
 fi
 
 # cleanup
