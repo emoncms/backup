@@ -33,7 +33,6 @@ then
     sudo rm $backup_location/emoncms-backup-$date.tar
 fi
 
-
 #-----------------------------------------------------------------------------------------------
 # Check emonPi / emonBase image version
 #-----------------------------------------------------------------------------------------------
@@ -57,8 +56,6 @@ else
 fi
 #-----------------------------------------------------------------------------------------------
 
-
-
 sudo service feedwriter stop
 
 # Get MYSQL authentication details from settings.php
@@ -78,6 +75,7 @@ if [ -n "$username" ]; then # if username string is not empty
     if [ $? -ne 0 ]; then
         echo "Error: failed to export mysql data"
         echo "emoncms export failed"
+        sudo service feedwriter start > /dev/null
         exit 1
     fi
 
@@ -96,6 +94,7 @@ if [ $image="old" ]; then
   if [ $? -ne 0 ]; then
       echo "Error: failed to tar config data"
       echo "emoncms export failed"
+      sudo service feedwriter start > /dev/null
       exit 1
   fi
 fi
@@ -107,6 +106,7 @@ if [ $image="new" ]; then
   if [ $? -ne 0 ]; then
       echo "Error: failed to tar config data"
       echo "emoncms export failed"
+      sudo service feedwriter start > /dev/null
       exit 1
   fi
 fi
@@ -116,6 +116,7 @@ tar --append --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path php
 if [ $? -ne 0 ]; then
     echo "Error: failed to tar mysql dump and data"
     echo "emoncms export failed"
+    sudo service feedwriter start > /dev/null
     exit 1
 fi
 
@@ -125,6 +126,7 @@ gzip -fv $backup_location/emoncms-backup-$date.tar 2>&1
 if [ $? -ne 0 ]; then
     echo "Error: failed to compress tar file"
     echo "emoncms export failed"
+    sudo service feedwriter start > /dev/null
     exit 1
 fi
 
