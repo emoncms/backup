@@ -111,8 +111,6 @@ echo "new image"
   fi
 fi
 
-exit 1
-
 # Append database folder to the archive with absolute path
 tar -rv --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries 2>&1
 if [ $? -ne 0 ]; then
