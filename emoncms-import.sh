@@ -80,7 +80,7 @@ if [ ! -d  $backup_location/import ]; then
 	sudo chown pi $backup_location/import -R
 fi
 
-tar xfz $backup_source_path/$backup_filename -C $backup_location/import 2>&1
+tar xfzv $backup_source_path/$backup_filename -C $backup_location/import 2>&1
 if [ $? -ne 0 ]; then
 	echo "Error: failed to decompress backup"
 	echo "$backup_source_path/$backup_filename has not been removed for diagnotics"

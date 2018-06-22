@@ -17,6 +17,7 @@ then
 else
     echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
     exit 1
+    sudo service feedwriter start > /dev/null
 fi
 
 #-----------------------------------------------------------------------------------------------
@@ -67,6 +68,7 @@ if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
     echo "$PWD"
+    sudo service feedwriter start > /dev/null
     exit 1
 fi
 
@@ -81,10 +83,11 @@ if [ -n "$username" ]; then # if username string is not empty
 
 else
     echo "Error: Cannot read MYSQL authentication details from Emoncms settings.php"
+    sudo service feedwriter start > /dev/null
     exit 1
 fi
 
-echo "Emoncms MYSQL database dump complete, adding files to archive .."
+echo "Emoncms MYSQL database dump complete, adding files to archive..."
 
 if [ $image="old" ]; then
   # Create backup archive and add config files stripping out the path
@@ -118,7 +121,7 @@ fi
 
 # Compress backup
 echo "Compressing archive..."
-gzip -f $backup_location/emoncms-backup-$date.tar 2>&1
+gzip -fv $backup_location/emoncms-backup-$date.tar 2>&1
 if [ $? -ne 0 ]; then
     echo "Error: failed to compress tar file"
     echo "emoncms export failed"
