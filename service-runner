@@ -9,17 +9,21 @@ flock -n 200 || exit 1
 pid=$$
 echo $pid 1>&200
 
+echo "starting service-runner"
+
 while :
 do
-    for flag in /tmp/emoncms-flag*; do
-        if [ -f $flag ]; then
-            tmp=`cat $flag`
-            IFS=\> read script logfile <<< "$tmp"
-            echo "STARTING: $script > $logfile"
-            sudo rm $flag
-            $script > $logfile
-            echo "COMPLETE: $script > $logfile"
+    flag=$(redis-cli lpop service-runner)
+    if [ $flag ]; then
+        echo "flag: "$flag
+        IFS=\> read script logfile <<< "$flag"
+        echo "STARTING: $script > $logfile"
+        $script > $logfile
+        if [ ! -e $logfile ]; then
+            touch $logfile
         fi
-    done
-    sleep 1
+        echo "COMPLETE: $script > $logfile"
+    fi
+
+    sleep 0.1
 done

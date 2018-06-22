@@ -14,7 +14,7 @@
 
 function backup_controller()
 {
-    global $route, $session, $path;
+    global $route, $session, $path, $redis;
     $result = false;
 
     $export_flag = "/tmp/emoncms-flag-export";
@@ -34,14 +34,8 @@ function backup_controller()
 
     if ($route->action == 'start') {
         $route->format = "text";
-        $fh = @fopen($export_flag,"w");
-        if (!$fh) {
-            $result = "ERROR: Can't write the flag $export_flag.";
-        } else {
-            fwrite($fh,"$export_script>$export_logfile");
-            $result = "Backup flag set";
-        }
-        @fclose($fh);
+        
+        $redis->rpush("service-runner","$export_script $export_flag>$export_logfile");
     }
 
     if ($route->action == 'exportlog') {
