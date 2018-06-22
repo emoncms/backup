@@ -17,7 +17,7 @@ then
 else
     echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
     exit 1
-fi  
+fi
 
 #-----------------------------------------------------------------------------------------------
 # Remove Old backup files
@@ -82,7 +82,7 @@ echo "Emoncms MYSQL database dump complete, adding files to archive .."
 tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g'
 
 # Append database folder to the archive with absolute path
-tar --append --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries
+tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries
 
 # Compress backup
 echo "Compressing archive..."
