@@ -49,10 +49,8 @@ fi
 if [[ -z $image_version ]] || [[ "$image_date" == "emonSD-17Jun2015" ]]
 then
   image="old"
-  echo "$image image"
 else
   image="new"
-  echo "$image image"
 fi
 #-----------------------------------------------------------------------------------------------
 
@@ -87,7 +85,8 @@ fi
 
 echo "Emoncms MYSQL database dump complete, adding files to archive..."
 
-if [ $image="old" ]; then
+if [ "$image" = "old" ]; then
+echo "old image"
   # Create backup archive and add config files stripping out the path
   # Old image  = don't backup nodeRED config (since nodeRED doesnot exist)
   tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
@@ -99,7 +98,8 @@ if [ $image="old" ]; then
   fi
 fi
 
-if [ $image="new" ]; then
+if [ "$image" = "new" ]; then
+echo "new image"
   # Create backup archive and add config files stripping out the path
   # New image = backup NodeRED
   tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g' 2>&1
@@ -111,8 +111,10 @@ if [ $image="new" ]; then
   fi
 fi
 
+exit 1
+
 # Append database folder to the archive with absolute path
-tar --append --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries 2>&1
+tar -rv --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries 2>&1
 if [ $? -ne 0 ]; then
     echo "Error: failed to tar mysql dump and data"
     echo "emoncms export failed"
