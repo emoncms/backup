@@ -33,7 +33,6 @@ then
     sudo rm $backup_location/emoncms-backup-$date.tar
 fi
 
-
 #-----------------------------------------------------------------------------------------------
 # Check emonPi / emonBase image version
 #-----------------------------------------------------------------------------------------------
@@ -46,16 +45,14 @@ then
     echo "Image version: $image_version"
 fi
 
-# Detect if SD card image verion, used to restore the correct emonhub.conf
-if [[ "$image_date" == "emonSD-17Jun2015" ]]
+# Very old images (the ones shipped with kickstarter campaign) have "emonpi-28May2015"
+if [[ -z $image_version ]] || [[ "$image_date" == "emonSD-17Jun2015" ]]
 then
   image="old"
 else
   image="new"
 fi
 #-----------------------------------------------------------------------------------------------
-
-
 
 sudo service feedwriter stop
 
@@ -71,8 +68,15 @@ else
 fi
 
 # MYSQL Dump Emoncms database
-if [ -n "$username" ]; then # if username sring is not empty
+if [ -n "$username" ]; then # if username string is not empty
     mysqldump -u$username -p$password emoncms > $backup_location/emoncms.sql
+    if [ $? -ne 0 ]; then
+        echo "Error: failed to export mysql data"
+        echo "emoncms export failed"
+        sudo service feedwriter start > /dev/null
+        exit 1
+    fi
+
 else
     echo "Error: Cannot read MYSQL authentication details from Emoncms settings.php"
     sudo service feedwriter start > /dev/null
@@ -81,16 +85,44 @@ fi
 
 echo "Emoncms MYSQL database dump complete, adding files to archive..."
 
-# Create backup archive and add config files stripping out the path
-tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g'
+if [ "$image" = "old" ]; then
+echo "old image"
+  # Create backup archive and add config files stripping out the path
+  # Old image  = don't backup nodeRED config (since nodeRED doesnot exist)
+  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
+  if [ $? -ne 0 ]; then
+      echo "Error: failed to tar config data"
+      echo "emoncms export failed"
+      sudo service feedwriter start > /dev/null
+      exit 1
+  fi
+fi
+
+if [ "$image" = "new" ]; then
+echo "new image"
+  # Create backup archive and add config files stripping out the path
+  # New image = backup NodeRED
+  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g' 2>&1
+  if [ $? -ne 0 ]; then
+      echo "Error: failed to tar config data"
+      echo "emoncms export failed"
+      sudo service feedwriter start > /dev/null
+      exit 1
+  fi
+fi
 
 # Append database folder to the archive with absolute path
 tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries
 
 # Compress backup
 echo "Compressing archive..."
-gzip -fv $backup_location/emoncms-backup-$date.tar
-
+gzip -fv $backup_location/emoncms-backup-$date.tar 2>&1
+if [ $? -ne 0 ]; then
+    echo "Error: failed to compress tar file"
+    echo "emoncms export failed"
+    sudo service feedwriter start > /dev/null
+    exit 1
+fi
 
 sudo service feedwriter start > /dev/null
 
