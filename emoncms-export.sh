@@ -17,6 +17,7 @@ then
 else
     echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
     exit 1
+    sudo service feedwriter start > /dev/null
 fi
 
 #-----------------------------------------------------------------------------------------------
@@ -65,6 +66,7 @@ if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
     echo "$PWD"
+    sudo service feedwriter start > /dev/null
     exit 1
 fi
 
@@ -73,10 +75,11 @@ if [ -n "$username" ]; then # if username sring is not empty
     mysqldump -u$username -p$password emoncms > $backup_location/emoncms.sql
 else
     echo "Error: Cannot read MYSQL authentication details from Emoncms settings.php"
+    sudo service feedwriter start > /dev/null
     exit 1
 fi
 
-echo "Emoncms MYSQL database dump complete, adding files to archive .."
+echo "Emoncms MYSQL database dump complete, adding files to archive..."
 
 # Create backup archive and add config files stripping out the path
 tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g'
@@ -86,7 +89,7 @@ tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina 
 
 # Compress backup
 echo "Compressing archive..."
-gzip -f $backup_location/emoncms-backup-$date.tar
+gzip -fv $backup_location/emoncms-backup-$date.tar
 
 
 sudo service feedwriter start > /dev/null
