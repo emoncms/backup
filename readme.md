@@ -1,4 +1,3 @@
-
 ## Emoncms backup export and import tool for backup and migration
 
 * Export a compressed archive containing Emoncms Inputs, Feed data, Dashboards & config.
@@ -48,7 +47,10 @@ Follow on screen prompts, RasPi will shutdown when process is compleate. It can 
     git clone https://github.com/emoncms/backup.git
     ln -s /home/pi/backup/backup/ /var/www/emoncms/Modules/backup
 
-**Note: Ensure you are running the latest version of Emoncms on the Stable branch. [A change was merged on the 9th Feb 16 to Emoncms core](https://github.com/emoncms/emoncms/commit/e83ad78e6155275d7537104367b8d44ef63d78fe) that enables symlinked modules which is essential for backup module to appear in Emoncms**
+**Note: 
+
+- Ensure you are running the latest version of Emoncms on the Stable branch. [A change was merged on the 9th Feb 16 to Emoncms core](https://github.com/emoncms/emoncms/commit/e83ad78e6155275d7537104367b8d44ef63d78fe) that enables symlinked modules which is essential for backup module to appear in Emoncms**
+- As of June 18 Backup module requires Redis to set service runner flags
 
 **If your running the older 'low-write' branch of Emoncms emonSD-17Jun15 or before then you won't be able to update to the latest version to enable symlinks, to get around this after installing the module browse to [http://emonpi/emoncms/backup](http://emonpi/emoncms/backup)**
 
@@ -74,14 +76,20 @@ or saving log in var log
 
 In order to enable uploads of backup zip files we need to set the maximum upload size to be larger than the file we want to upload. This can be set system wide in `/etc/php5/apache2/php.ini`:
 
+If using php5
+
     sudo nano /etc/php5/apache2/php.ini
+
+if using php7
+
+   sudo nano /etc/php/7.0/apache2/php.ini 
 
 Use `[CTRL + W]` to search test
 
 Set:
 
-    post_max_size = 200M
-    upload_max_filesize = 200M
+    post_max_size = 3G
+    upload_max_filesize = 3G
 
 # Create uploads folder
 
