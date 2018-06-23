@@ -81,15 +81,7 @@ function backup_controller()
 
         if ((move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) && ($uploadOk == 1)) {
 
-            $fh = @fopen($import_flag,"w");
-            if (!$fh) {
-                $result = "ERROR: Can't write the flag $import_flag.";
-            } else {
-                fwrite($fh,"$import_script>$import_logfile");
-                $result = "Backup flag set";
-            }
-            @fclose($fh);
-
+            $redis->rpush("service-runner","$import_script $import_flag>$import_logfile");
             header('Location: '.$path.'backup');
         } else {
             $result = "Sorry, there was an error uploading the file";
