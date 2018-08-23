@@ -13,7 +13,6 @@ then
     source /home/pi/backup/config.cfg
     echo "Location of mysql database: $mysql_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
-    echo "Location of emoncms.conf: $emoncms_config_path"
     echo "Location of Emoncms: $emoncms_location"
     echo "Backup destination: $backup_location"
 else
@@ -91,7 +90,7 @@ if [ "$image" = "old" ]; then
 echo "old image"
   # Create backup archive and add config files stripping out the path
   # Old image  = don't backup nodeRED config (since nodeRED doesnot exist)
-  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
+  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
   if [ $? -ne 0 ]; then
       echo "Error: failed to tar config data"
       echo "emoncms export failed"
@@ -104,7 +103,7 @@ if [ "$image" = "new" ]; then
 echo "new image"
   # Create backup archive and add config files stripping out the path
   # New image = backup NodeRED
-  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g' 2>&1
+  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf  $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g' 2>&1
   if [ $? -ne 0 ]; then
       echo "Error: failed to tar config data"
       echo "emoncms export failed"
