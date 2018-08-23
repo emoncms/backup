@@ -86,30 +86,13 @@ fi
 
 echo "Emoncms MYSQL database dump complete, adding files to archive..."
 
-if [ "$image" = "old" ]; then
-echo "old image"
-  # Create backup archive and add config files stripping out the path
-  # Old image  = don't backup nodeRED config (since nodeRED doesnot exist)
-  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
-  if [ $? -ne 0 ]; then
-      echo "Error: failed to tar config data"
-      echo "emoncms export failed"
-      sudo service feedwriter start > /dev/null
-      exit 1
-  fi
-fi
-
-if [ "$image" = "new" ]; then
-echo "new image"
-  # Create backup archive and add config files stripping out the path
-  # New image = backup NodeRED
-  tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf  $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g' 2>&1
-  if [ $? -ne 0 ]; then
-      echo "Error: failed to tar config data"
-      echo "emoncms export failed"
-      sudo service feedwriter start > /dev/null
-      exit 1
-  fi
+# Create backup archive and add config files stripping out the path
+tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
+if [ $? -ne 0 ]; then
+    echo "Error: failed to tar config data"
+    echo "emoncms export failed"
+    sudo service feedwriter start > /dev/null
+    exit 1
 fi
 
 # Append database folder to the archive with absolute path
