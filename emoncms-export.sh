@@ -96,13 +96,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Append database folder to the archive with absolute path
-tar -rv --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries 2>&1
-if [ $? -ne 0 ]; then
-    echo "Error: failed to tar mysql dump and data"
-    echo "emoncms export failed"
-    sudo service feedwriter start > /dev/null
-    exit 1
-fi
+tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries
 
 # Compress backup
 echo "Compressing archive..."
