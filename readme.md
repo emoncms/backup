@@ -74,16 +74,19 @@ or saving log in var log
 
 ## PHP Config
 
-In order to enable uploads of backup zip files we need to set the maximum upload size to be larger than the file we want to upload. This can be set system wide in `/etc/php5/apache2/php.ini`:
+In order to enable uploads of backup zip files we need to set the maximum upload size to be larger than the file we want to upload.
+
+If running php5
 
 If using php5
 
     sudo nano /etc/php5/apache2/php.ini
+    
+If runnning php7 (Stretch onwards)
 
-if using php7
 
-   sudo nano /etc/php/7.0/apache2/php.ini 
-
+    sudo nano /etc/php/7.0/apache2/php.ini
+    
 Use `[CTRL + W]` to search test
 
 Set:

@@ -14,7 +14,6 @@ then
     source /home/pi/backup/config.cfg
     echo "Location of mysql database: $mysql_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
-    echo "Location of emoncms.conf: $emoncms_config_path"
     echo "Location of Emoncms: $emoncms_location"
     echo "Backup destination: $backup_location"
     echo "Backup source path: $backup_source_path"
@@ -138,12 +137,10 @@ fi
 # cleanup
 sudo rm $backup_location/import/emoncms.sql
 
-# Save previous config settings as old.emonhub.conf and old.emoncms.conf
+# Save previous config settings as old.emonhub.conf
 echo "Import emonhub.conf > $emonhub_config_path/old.emohub.conf"
 mv $backup_location/import/emonhub.conf $emonhub_config_path/old.emonhub.conf
-echo "Import emoncms.conf > $emonhub_config_path/old.emoncms.conf"
-mv $backup_location/import/emoncms.conf $emoncms_config_path/old.emoncms.conf
-echo "conf files restored as old.*.conf, original files not modified. Please merge manually."
+echo "emonhub.conf files restored as old.emonhub.conf, original file not modified. Please merge manually."
 
 
 # Start with blank emonhub.conf
@@ -157,11 +154,6 @@ else    # Newer Feb15+ image use latest emonhub.conf with MQTT node variable top
    echo "cp $emonhub_specimen_config/emonpi.default.emonhub.conf $emonhub_config_path/emonhub.conf"
    cp $emonhub_specimen_config/emonpi.default.emonhub.conf $emonhub_config_path/emonhub.conf
 fi
-
-# Create blank emoncms.conf and ensure permissions are correct
-sudo touch $emoncms_config_path/emoncms.conf
-sudo chown pi:www-data $emoncms_config_path/emoncms.conf
-sudo chmod 664 $emoncms_config_path/emoncms.conf
 
 redis-cli "flushall" 2>&1
 
