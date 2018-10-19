@@ -93,6 +93,7 @@ Set:
 
     post_max_size = 3G
     upload_max_filesize = 3G
+    upload_tmp_dir = /home/pi/data/uploads
 
 # Create uploads folder
 
