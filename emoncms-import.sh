@@ -6,7 +6,7 @@ data_path="/home/pi/data"
 echo "=== Emoncms import start ==="
 date +"%Y-%m-%d-%T"
 echo "Backup module version:"
-cat backup/module.json | grep version
+cat /home/pi/backup/backup/module.json | grep version
 echo "EUID: $EUID"
 echo "Reading /home/pi/backup/config.cfg...."
 if [ -f /home/pi/backup/config.cfg ]
