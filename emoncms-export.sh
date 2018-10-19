@@ -84,7 +84,7 @@ else
     exit 1
 fi
 
-echo "Emoncms MYSQL database dump complete, adding files to archive..."
+echo "Emoncms MYSQL database dump complete, adding to archive..."
 
 # Create backup archive and add config files stripping out the path
 tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
@@ -95,8 +95,11 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+echo "Adding phpfina feed data to archive..."
 # Append database folder to the archive with absolute path
-tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries
+tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina
+echo "Adding phptimeseries feed data to archive..."
+tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phptimeseries
 
 # Compress backup
 echo "Compressing archive..."
