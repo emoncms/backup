@@ -17,20 +17,17 @@ then
 else
     echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
     exit 1
-fi  
+fi
+
+backup_location="/home/pi/usbdisk/backup"
 
 #-----------------------------------------------------------------------------------------------
 # Remove Old backup files
 #-----------------------------------------------------------------------------------------------
-if [ -f $backup_location/emoncms.sql ]
-then
-    sudo rm $backup_location/emoncms.sql
-fi
-
-if [ -f $backup_location/emoncms-backup-$date.tar ]
-then
-    sudo rm $backup_location/emoncms-backup-$date.tar
-fi
+#if [ -f $backup_location/emoncms.sql ]
+#then
+#    sudo rm $backup_location/emoncms.sql
+#fi
 
 
 #-----------------------------------------------------------------------------------------------
@@ -52,9 +49,8 @@ then
 else
   image="new"
 fi
+
 #-----------------------------------------------------------------------------------------------
-
-
 
 sudo service feedwriter stop
 
@@ -78,20 +74,18 @@ fi
 
 echo "Emoncms MYSQL database dump complete, adding files to archive .."
 
-# Create backup archive and add config files stripping out the path
-tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_config_path/emoncms.conf $emoncms_location/settings.php /home/pi/data/node-red/flows_emonpi.json /home/pi/data/node-red/flows_emonpi_cred.json /home/pi/data/node-red/settings.js --transform 's?.*/??g'
+cp $emonhub_config_path/emonhub.conf $backup_location
+cp $emoncms_config_path/emoncms.conf $backup_location
+cp $emoncms_location/settings.php $backup_location
+cp /home/pi/data/node-red/flows_emonpi.json $backup_location
+cp /home/pi/data/node-red/settings.js $backup_location
 
 # Append database folder to the archive with absolute path
-tar --append --verbose --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina phptimeseries
-
-# Compress backup
-echo "Compressing archive..."
-gzip -f $backup_location/emoncms-backup-$date.tar
-
+#cp --verbose -r /home/pi/$mysql_path $backup_location
+cp --verbose -r /home/pi/data/phpfina/. $backup_location/phpfina
+cp --verbose -r /home/pi/data/phptimeseries/. $backup_location/phptimeseries
 
 sudo service feedwriter start > /dev/null
 
-echo "Backup saved: $backup_location/emoncms-backup-$date.tar.gz"
 date
-echo "Export finished...refresh page to view download link"
 echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
