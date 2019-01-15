@@ -6,7 +6,7 @@
 <style>
 pre {
     width:80%;
-    height:300px;
+    height:400px;
 
     margin:0px;
     padding:0px;
