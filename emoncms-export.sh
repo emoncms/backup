@@ -92,21 +92,21 @@ echo "Emoncms MYSQL database dump complete, adding files to archive .."
 
 if [ -f $backup_location/emoncms.sql ]
 then
-  tar -c --file=$backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql
+  tar -c --file=$backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql --transform 's?.*/??g' 2>&1
 else
     echo "no file $backup_location/emoncms.sql"
 fi
 
 if [ -f $emonhub_config_path/emonhub.conf ]
 then
-  tar -vr --file=$backup_location/emoncms-backup-$date.tar $emonhub_config_path/emonhub.conf
+  tar -vr --file=$backup_location/emoncms-backup-$date.tar $emonhub_config_path/emonhub.conf --transform 's?.*/??g' 2>&1
 else
     echo "no file $emonhub_config_path/emonhub.conf"
 fi
 
 if [ -f $emoncms_location/settings.php ]
 then
-  tar -vr --file=$backup_location/emoncms-backup-$date.tar $emoncms_location/settings.php
+  tar -vr --file=$backup_location/emoncms-backup-$date.tar $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
 else
     echo "no file $emoncms_location/settings.php"
 fi
