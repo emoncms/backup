@@ -6,7 +6,7 @@ date=$(date +"%Y-%m-%d")
 echo "=== Emoncms export start ==="
 date
 echo "Backup module version:"
-cat /home/pi/backup/backup/module.json | grep version
+cat $script_location/backup/module.json | grep version
 echo "EUID: $EUID"
 echo "Reading $script_location/config.cfg...."
 if [ -f "$script_location/config.cfg" ]
@@ -88,10 +88,9 @@ else
     exit 1
 fi
 
-echo "Emoncms MYSQL database dump complete, adding files to archive .."
-
 if [ -f $backup_location/emoncms.sql ]
 then
+  echo "-- adding $backup_location/emoncms.sql to archive --"
   tar -c --file=$backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql --transform 's?.*/??g' 2>&1
 else
     echo "no file $backup_location/emoncms.sql"
@@ -99,6 +98,7 @@ fi
 
 if [ -f $emonhub_config_path/emonhub.conf ]
 then
+  echo "-- adding $emonhub_config_path/emonhub.conf to archive --"
   tar -vr --file=$backup_location/emoncms-backup-$date.tar $emonhub_config_path/emonhub.conf --transform 's?.*/??g' 2>&1
 else
     echo "no file $emonhub_config_path/emonhub.conf"
@@ -106,6 +106,7 @@ fi
 
 if [ -f $emoncms_location/settings.php ]
 then
+  echo "-- adding $emoncms_location/settings.php to archive --"
   tar -vr --file=$backup_location/emoncms-backup-$date.tar $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
 else
     echo "no file $emoncms_location/settings.php"
@@ -114,6 +115,7 @@ fi
 # Append database folder to the archive with absolute path
 if [ -d $database_path/phpfina ]
 then
+  echo "-- adding $database_path/phpfina to archive --"
   tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $database_path phpfina 2>&1
   if [ $? -ne 0 ]; then
     echo "Error: failed to tar phpfina"
@@ -124,6 +126,7 @@ fi
 
 if [ -d $database_path/phpfiwa ]
 then
+  echo "-- adding $database_path/phpfiwa to archive --"
   tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $database_path phpfiwa 2>&1
   if [ $? -ne 0 ]; then
     echo "Error: failed to tar phpfiwa"
@@ -134,6 +137,7 @@ fi
 
 if [ -d $database_path/phptimeseries ]
 then
+  echo "-- adding $database_path/phptimeseries to archive --"
   tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $database_path phptimeseries 2>&1
   if [ $? -ne 0 ]; then
     echo "Error: failed to tar phptimeseries"
