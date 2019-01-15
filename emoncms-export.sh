@@ -8,10 +8,10 @@ date
 echo "Backup module version:"
 cat /home/pi/backup/backup/module.json | grep version
 echo "EUID: $EUID"
-echo "Reading $script_location/backup/config.cfg...."
-if [ -f "$script_location/backup/config.cfg" ]
+echo "Reading $script_location/config.cfg...."
+if [ -f "$script_location/config.cfg" ]
 then
-    source "$script_location/backup/config.cfg"
+    source "$script_location/config.cfg"
     echo "Location of databases: $database_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
     echo "Location of Emoncms: $emoncms_location"
