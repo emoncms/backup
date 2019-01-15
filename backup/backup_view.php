@@ -1,5 +1,6 @@
 <?php
-    global $path;
+    global $path;    
+    @exec('ps ax | grep service-runner.py | grep -v grep', $servicerunnerproc);
 ?>
 
 <style>
@@ -39,7 +40,12 @@ pre {
   </div>
   
   <div style="height:20px"></div>
-  
+
+  <?php
+    if (empty($servicerunnerproc)) {
+        echo "<div class='alert alert-error'><b>Warning:</b> service-runner is not running and is required. To install service-runner see <a href='https://github.com/emoncms/emoncms/blob/master/scripts/services/install-service-runner-update.md'>service-runner installation</a></div>";
+    }
+  ?>
   <div id="view-export">
     <h3>Export</h3>
     <p>Export a compressed archive containing:</p>
@@ -113,6 +119,7 @@ import_updater = setInterval(import_log_update,1000);
 $("#emonpi-backup").click(function() {
   $.ajax({ url: path+"backup/start", async: true, dataType: "text", success: function(result) {
       $("#export-log").html(result);
+      clearInterval(export_updater);
       export_updater = setInterval(export_log_update,1000);
     }
   });
