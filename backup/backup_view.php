@@ -100,7 +100,7 @@ pre {
 init_sidebar({menu_element:"#backup_menu"});
 var path = "<?php echo $path; ?>";
 
-var view = "#export";
+$("#view-import").hide();
 if (location.hash=="#export") { $("#view-import").hide(); $("#view-export").show(); }
 if (location.hash=="#import") { $("#view-import").show(); $("#view-export").hide(); }
 
