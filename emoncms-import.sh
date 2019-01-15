@@ -77,7 +77,7 @@ fi
 echo "Decompressing backup.."
 if [ ! -d  $backup_location/import ]; then
 	mkdir $backup_location/import
-	sudo chown pi $backup_location/import -R
+	sudo chown $user $backup_location/import -R
 fi
 
 tar xfzv $backup_source_path/$backup_filename -C $backup_location/import 2>&1
