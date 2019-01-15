@@ -41,11 +41,10 @@ Follow on screen prompts, RasPi will shutdown when process is compleate. It can 
 
 # Emoncms Module Install
  
- Install this module in your home folder then symlink the sub-folder called backup to your emoncms Modules directory:
+ Install this module within your home folder or a folder of your choice then symlink the sub-folder called backup to your emoncms Modules directory (assuming your emoncms folder is in the usual place).  From within the parent folder you choose (such as ~/)
 
-    cd ~/
     git clone https://github.com/emoncms/backup.git
-    ln -s /home/pi/backup/backup/ /var/www/emoncms/Modules/backup
+    ln -s $PWD/backup/ /var/www/emoncms/Modules/backup
 
 **Note: 
 

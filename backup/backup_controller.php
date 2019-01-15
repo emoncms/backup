@@ -14,19 +14,23 @@
 
 function backup_controller()
 {
-    global $route, $session, $path, $redis;
+    global $route, $session, $path, $redis, $homedir;
     $result = false;
-
-    $export_flag = "/tmp/emoncms-flag-export";
-    $export_script = "/home/pi/backup/emoncms-export.sh";
-    $export_logfile = "/home/pi/data/emoncms-export.log";
-
-    $import_flag = "/tmp/emoncms-flag-import";
-    $import_script = "/home/pi/backup/emoncms-import.sh";
-    $import_logfile = "/home/pi/data/emoncms-import.log";
 
     // This module is only to be ran by the admin user
     if (!$session['write'] && !$session['admin']) return array('content'=>false);
+    
+    if (!file_exists("$homedir/backup/config.cfg")) return "missing backup config.cfg";
+    
+    $parsed_ini = parse_ini_file("$homedir/backup/config.cfg", true);
+
+    $export_flag = "/tmp/emoncms-flag-export";
+    $export_script = $parsed_ini['backup_script_location']."/emoncms-export.sh";
+    $export_logfile = $parsed_ini['backup_location']."/emoncms-export.log";
+
+    $import_flag = "/tmp/emoncms-flag-import";
+    $import_script = $parsed_ini['backup_script_location']."/emoncms-import.sh";
+    $import_logfile = $parsed_ini['backup_location']."/emoncms-import.log";
 
     if ($route->format == 'html' && $route->action == "") {
         $result = view("Modules/backup/backup_view.php",array());
@@ -58,7 +62,7 @@ function backup_controller()
         header("Content-Disposition: attachment; filename=$backup_filename");
         header("Pragma: no-cache");
         header("Expires: 0");
-        readfile("/home/pi/data/$backup_filename");
+        readfile($parsed_ini['backup_location']."/".$backup_filename);
         exit;
     }
 
@@ -67,7 +71,7 @@ function backup_controller()
         // ini_set('upload_max_filesize', '200M');
         // ini_set('post_max_size', '200M');
         $uploadOk = 1;
-        $target_path = "/home/pi/data/uploads/";
+        $target_path = $parsed_ini['backup_location']."/uploads/";
         $target_path = $target_path . basename( $_FILES['file']['name']);
         
         $imageFileType = pathinfo($target_path,PATHINFO_EXTENSION);
