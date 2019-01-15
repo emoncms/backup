@@ -18,8 +18,10 @@ function backup_controller()
     $result = false;
 
     // This module is only to be ran by the admin user
-    if (!$session['write'] && !$session['admin']) return array('content'=>false);
-    
+    if (!$session['write'] && !$session['admin']) {
+        $route->format = "text";
+        return "backup module requires admin access";
+    }
     if (!file_exists("$homedir/backup/config.cfg")) return "missing backup config.cfg";
     
     $parsed_ini = parse_ini_file("$homedir/backup/config.cfg", true);

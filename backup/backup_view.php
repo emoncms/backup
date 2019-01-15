@@ -141,6 +141,7 @@ function export_log_update() {
 function import_log_update() {
   $.ajax({ url: path+"backup/importlog", async: true, dataType: "text", success: function(result)
     {
+      if (result=="backup module requires admin access") location.replace("/");
       $("#import-log").html(result);
       document.getElementById("import-log-bound").scrollTop = document.getElementById("import-log-bound").scrollHeight
 
