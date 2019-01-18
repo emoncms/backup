@@ -23,6 +23,10 @@ fi
 
 echo "Starting import from $backup_source_path to $backup_location..."
 
+emonhub=$(systemctl show emonhub | grep LoadState | cut -d"=" -f2)
+feedwriter=$(systemctl show feedwriter | grep LoadState | cut -d"=" -f2)
+mqtt_input=$(systemctl show mqtt_input | grep LoadState | cut -d"=" -f2)
+emoncms_nodes_service=$(systemctl show emoncms-nodes-service | grep LoadState | cut -d"=" -f2)
 
 #-----------------------------------------------------------------------------------------------
 # Check emonPi / emonBase image version
@@ -97,10 +101,16 @@ if [ -n "$password" ]
 then # if username sring is not empty
     if [ -f $backup_location/import/emoncms.sql ]; then
         echo "Stopping services.."
-        sudo service emonhub stop
-        sudo service feedwriter stop
-        sudo service mqtt_input stop
-        if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
+        if [[ $emonhub == "loaded" ]]; then
+            sudo service emonhub stop
+        fi
+        if [[ $feedwriter == "loaded" ]]; then
+            sudo service feedwriter stop
+        fi
+        if [[ $mqtt_input == "loaded" ]]; then
+            sudo service mqtt_input stop
+        fi
+        if [[ $emoncms_nodes_service == "loaded" ]]; then
             sudo service emoncms-nodes-service stop
         fi
         echo "Emoncms MYSQL database import..."
@@ -161,13 +171,20 @@ if [ -f /home/pi/emonpi/emoncmsdbupdate.php ]; then
     php /home/pi/emonpi/emoncmsdbupdate.php
 fi
 
-echo "Restarting emonhub..."
-sudo service emonhub start
-echo "Restarting feedwriter..."
-sudo service feedwriter start
-echo "Restarting MQTT input..."
-sudo service mqtt_input start
-if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
+# Restart services
+if [[ $emonhub == "loaded" ]]; then
+    echo "Restarting emonhub..."
+    sudo service emonhub start
+fi
+if [[ $feedwriter == "loaded" ]]; then
+    echo "Restarting feedwriter..."
+    sudo service feedwriter start
+fi
+if [[ $mqtt_input == "loaded" ]]; then
+    echo "Restarting MQTT input..."
+    sudo service mqtt_input start
+fi
+if [[ $emoncms_nodes_service == "loaded" ]]; then
     echo "Restarting emoncms-nodes-service..."
     sudo service emoncms-nodes-service start
 fi
