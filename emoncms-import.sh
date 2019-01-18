@@ -66,7 +66,7 @@ echo "Backup found: $backup_filename starting import.."
 echo "Read MYSQL authentication details from settings.php"
 if [ -f $script_location/get_emoncms_mysql_auth.php ]; then
     auth=$(echo $emoncms_location | php $script_location/get_emoncms_mysql_auth.php php)
-    IFS=":" read username password <<< "$auth"
+    IFS=":" read username password database <<< "$auth"
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
     echo "$PWD"
@@ -104,7 +104,7 @@ then # if username sring is not empty
             sudo service emoncms-nodes-service stop
         fi
         echo "Emoncms MYSQL database import..."
-        mysql -u$username -p$password emoncms < $backup_location/import/emoncms.sql
+        mysql -u$username -p$password $database < $backup_location/import/emoncms.sql
 	if [ $? -ne 0 ]; then
 		echo "Error: failed to import mysql data"
 		echo "Import failed"
