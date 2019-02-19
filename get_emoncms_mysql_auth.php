@@ -28,4 +28,4 @@
     //chdir("/var/www/emoncms");
     define('EMONCMS_EXEC', 1);
     require "process_settings.php";
-    echo $username.":".$password;
+    echo $server,":",$username.":".$password;
