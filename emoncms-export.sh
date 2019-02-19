@@ -60,7 +60,7 @@ sudo service feedwriter stop
 # Get MYSQL authentication details from settings.php
 if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
     auth=$(echo $emoncms_location | php /home/pi/backup/get_emoncms_mysql_auth.php php)
-    IFS=":" read username password <<< "$auth"
+    IFS=":" read server username password <<< "$auth"
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
     echo "$PWD"
@@ -70,7 +70,7 @@ fi
 
 # MYSQL Dump Emoncms database
 if [ -n "$username" ]; then # if username string is not empty
-    mysqldump -u$username -p$password emoncms > $backup_location/emoncms.sql
+    mysqldump -h$server -u$username -p$password emoncms > $backup_location/emoncms.sql
     if [ $? -ne 0 ]; then
         echo "Error: failed to export mysql data"
         echo "emoncms export failed"
