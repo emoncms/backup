@@ -6,13 +6,13 @@
 
 * Import compressed archive into another Emoncms account
 
-# [Backup module User Guide](https://guide.openenergymonitor.org/setup/import/)
+### [Backup module User Guide](https://guide.openenergymonitor.org/setup/import/)
 
 Via Emoncms module web interface [(see video screencast guide)](https://www.youtube.com/watch?v=5U_tOlsWjXM) or manual (see below for manual instructions):
 
 ---
 
-# Install
+### Install
 
 **Requirements**
 
@@ -30,22 +30,22 @@ Symlink the sub-folder called backup-module to your emoncms Modules directory:
     cd backup
     ln -s $PWD/backup-module /var/www/emoncms/Modules/backup
     
-Run backup module installation script to modify php.ini and setup uploads folder (Set $usrdir to your usr directory above e.g /usr/emon):
+Run backup module installation script to modify php.ini and setup uploads folder<br>(Set $usrdir to your usr directory above e.g /usr/emon):
 
     ./install.sh $usrdir
 
-## Configure
+### Configure
 
 Make a copy of `default.config.cfg` called `config.cfg`. Set the paths in `config.cfg` to match your system.
 
 ---
 
-## Manual Export Instructions
+### Manual Export Instructions
 
 1. Configure paths in `config.cfg` to match your system
 2. Run `./emoncms-export.sh`
 
-## Manual Import Instructions
+### Manual Import Instructions
 
 If importing large backup files browser upload method may fail. In this case follow:
 
