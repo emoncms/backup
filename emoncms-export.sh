@@ -6,7 +6,7 @@ date=$(date +"%Y-%m-%d")
 echo "=== Emoncms export start ==="
 date
 echo "Backup module version:"
-cat $script_location/backup/module.json | grep version
+cat $script_location/backup-module/module.json | grep version
 echo "EUID: $EUID"
 echo "Reading $script_location/config.cfg...."
 if [ -f "$script_location/config.cfg" ]

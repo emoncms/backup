@@ -39,7 +39,7 @@ function backup_controller()
     $import_logfile = $parsed_ini['backup_location']."/emoncms-import.log";
 
     if ($route->format == 'html' && $route->action == "") {
-        $result = view("Modules/backup/backup_view.php",array());
+        $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini));
     }
 
     if ($route->action == 'start') {

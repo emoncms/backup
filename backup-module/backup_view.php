@@ -1,5 +1,5 @@
 <?php
-    global $path;    
+    global $path, $homedir;    
     @exec('ps ax | grep service-runner.py | grep -v grep', $servicerunnerproc);
 ?>
 
@@ -68,7 +68,7 @@ pre {
     <pre id="export-log-bound"><div id="export-log"></div></pre>
     <?php
     $backup_filename="emoncms-backup-".date("Y-m-d").".tar.gz";
-    if (file_exists("/home/pi/data/$backup_filename") && !file_exists("/tmp/backuplock")) {
+    if (file_exists($parsed_ini['backup_location']."/".$backup_filename) && !file_exists("/tmp/backuplock")) {
         echo '<br><br><b>Right Click > Download:</b><br><a href="'.$path.'backup/download">'.$backup_filename.'</a>';
     }
     ?>
