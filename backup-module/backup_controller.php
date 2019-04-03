@@ -22,10 +22,14 @@ function backup_controller()
         $route->format = "text";
         return "<br><div class='alert alert-error'><b>Error:</b> backup module requires admin access</div>";
     }
-    if (!file_exists("$homedir/backup/config.cfg")) return "<br><div class='alert alert-error'><b>Error:</b> missing backup config.cfg</div>";
+    if (file_exists("$homedir/backup/config.cfg")) {
+        $parsed_ini = parse_ini_file("$homedir/backup/config.cfg", true);
+    } else if (file_exists("$homedir/modules/backup/config.cfg")) {
+        $parsed_ini = parse_ini_file("$homedir/modules/backup/config.cfg", true);
+    } else {
+        return "<br><div class='alert alert-error'><b>Error:</b> missing backup config.cfg</div>";
+    }
     
-    $parsed_ini = parse_ini_file("$homedir/backup/config.cfg", true);
-
     $export_flag = "/tmp/emoncms-flag-export";
     $export_script = $parsed_ini['backup_script_location']."/emoncms-export.sh";
     $export_logfile = $parsed_ini['backup_location']."/emoncms-export.log";
