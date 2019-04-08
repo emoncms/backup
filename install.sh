@@ -27,12 +27,12 @@ sudo sed -i "s~^upload_tmp_dir.*~upload_tmp_dir = $upload_dir~" $php_ini
 # Create uploads folder
 if [ ! -d $usrdir/data ]; then
     echo "- creating $usrdir/data directory"
-    sudo mkdir $usrdir/data
+    mkdir $usrdir/data
 fi
 
 if [ ! -d $usrdir/data/uploads ]; then
     echo "- creating $usrdir/data/uploads directory"
-    sudo mkdir $usrdir/data/uploads
+    mkdir $usrdir/data/uploads
     sudo chown www-data $usrdir/data/uploads -R
 fi
 
