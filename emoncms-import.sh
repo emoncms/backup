@@ -1,29 +1,32 @@
 #!/bin/bash
 
-backup_source_path="/home/pi/data/uploads"
-data_path="/home/pi/data"
+script_location="`dirname $0`"
 
 echo "=== Emoncms import start ==="
 date +"%Y-%m-%d-%T"
 echo "Backup module version:"
-cat /home/pi/backup/backup/module.json | grep version
+cat $script_location/backup/module.json | grep version
 echo "EUID: $EUID"
-echo "Reading /home/pi/backup/config.cfg...."
-if [ -f /home/pi/backup/config.cfg ]
+echo "Reading $script_location/config.cfg...."
+if [ -f "$script_location/config.cfg" ]
 then
-    source /home/pi/backup/config.cfg
-    echo "Location of mysql database: $mysql_path"
+    source "$script_location/config.cfg"
+    echo "Location of data databases: $database_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
     echo "Location of Emoncms: $emoncms_location"
     echo "Backup destination: $backup_location"
     echo "Backup source path: $backup_source_path"
 else
-    echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
+    echo "ERROR: Backup $script_location/backup/config.cfg file does not exist"
     exit 1
 fi
 
 echo "Starting import from $backup_source_path to $backup_location..."
 
+emonhub=$(systemctl show emonhub | grep LoadState | cut -d"=" -f2)
+feedwriter=$(systemctl show feedwriter | grep LoadState | cut -d"=" -f2)
+mqtt_input=$(systemctl show mqtt_input | grep LoadState | cut -d"=" -f2)
+emoncms_nodes_service=$(systemctl show emoncms-nodes-service | grep LoadState | cut -d"=" -f2)
 
 #-----------------------------------------------------------------------------------------------
 # Check emonPi / emonBase image version
@@ -65,9 +68,9 @@ fi
 echo "Backup found: $backup_filename starting import.."
 
 echo "Read MYSQL authentication details from settings.php"
-if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
-    auth=$(echo $emoncms_location | php /home/pi/backup/get_emoncms_mysql_auth.php php)
-    IFS=":" read username password <<< "$auth"
+if [ -f $script_location/get_emoncms_mysql_auth.php ]; then
+    auth=$(echo $emoncms_location | php $script_location/get_emoncms_mysql_auth.php php)
+    IFS=":" read username password database <<< "$auth"
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
     echo "$PWD"
@@ -78,7 +81,7 @@ fi
 echo "Decompressing backup.."
 if [ ! -d  $backup_location/import ]; then
 	mkdir $backup_location/import
-	sudo chown pi $backup_location/import -R
+	sudo chown $user $backup_location/import -R
 fi
 
 tar xfzv $backup_source_path/$backup_filename -C $backup_location/import 2>&1
@@ -98,14 +101,20 @@ if [ -n "$password" ]
 then # if username sring is not empty
     if [ -f $backup_location/import/emoncms.sql ]; then
         echo "Stopping services.."
-        sudo service emonhub stop
-        sudo service feedwriter stop
-        sudo service mqtt_input stop
-        if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
+        if [[ $emonhub == "loaded" ]]; then
+            sudo service emonhub stop
+        fi
+        if [[ $feedwriter == "loaded" ]]; then
+            sudo service feedwriter stop
+        fi
+        if [[ $mqtt_input == "loaded" ]]; then
+            sudo service mqtt_input stop
+        fi
+        if [[ $emoncms_nodes_service == "loaded" ]]; then
             sudo service emoncms-nodes-service stop
         fi
         echo "Emoncms MYSQL database import..."
-        mysql -u$username -p$password emoncms < $backup_location/import/emoncms.sql
+        mysql -u$username -p$password $database < $backup_location/import/emoncms.sql
 	if [ $? -ne 0 ]; then
 		echo "Error: failed to import mysql data"
 		echo "Import failed"
@@ -121,17 +130,17 @@ else
 fi
 
 echo "Import feed meta data.."
-sudo rm -rf $mysql_path/{phpfina,phptimeseries} 2> /dev/null
+sudo rm -rf $database_path/{phpfina,phptimeseries} 2> /dev/null
 
 echo "Restore phpfina and phptimeseries data folders..."
 if [ -d $backup_location/import/phpfina ]; then
-	sudo mv $backup_location/import/phpfina $mysql_path
-	sudo chown -R www-data:root $mysql_path/phpfina
+	sudo mv $backup_location/import/phpfina $database_path
+	sudo chown -R www-data:root $database_path/phpfina
 fi
 
 if [ -d  $backup_location/import/phptimeseries ]; then
-	sudo mv $backup_location/import/phptimeseries $mysql_path
-	sudo chown -R www-data:root $mysql_path/phptimeseries
+	sudo mv $backup_location/import/phptimeseries $database_path
+	sudo chown -R www-data:root $database_path/phptimeseries
 fi
 
 # cleanup
@@ -162,13 +171,20 @@ if [ -f /home/pi/emonpi/emoncmsdbupdate.php ]; then
     php /home/pi/emonpi/emoncmsdbupdate.php
 fi
 
-echo "Restarting emonhub..."
-sudo service emonhub start
-echo "Restarting feedwriter..."
-sudo service feedwriter start
-echo "Restarting MQTT input..."
-sudo service mqtt_input start
-if [ -f "/etc/init.d/emoncms-nodes-service" ]; then
+# Restart services
+if [[ $emonhub == "loaded" ]]; then
+    echo "Restarting emonhub..."
+    sudo service emonhub start
+fi
+if [[ $feedwriter == "loaded" ]]; then
+    echo "Restarting feedwriter..."
+    sudo service feedwriter start
+fi
+if [[ $mqtt_input == "loaded" ]]; then
+    echo "Restarting MQTT input..."
+    sudo service mqtt_input start
+fi
+if [[ $emoncms_nodes_service == "loaded" ]]; then
     echo "Restarting emoncms-nodes-service..."
     sudo service emoncms-nodes-service start
 fi

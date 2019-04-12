@@ -1,25 +1,29 @@
 #!/bin/bash
+script_location="`dirname $0`"
 
 date=$(date +"%Y-%m-%d")
 
 echo "=== Emoncms export start ==="
 date
 echo "Backup module version:"
-cat /home/pi/backup/backup/module.json | grep version
+cat $script_location/backup-module/module.json | grep version
 echo "EUID: $EUID"
-echo "Reading /home/pi/backup/config.cfg...."
-if [ -f /home/pi/backup/config.cfg ]
+echo "Reading $script_location/config.cfg...."
+if [ -f "$script_location/config.cfg" ]
 then
-    source /home/pi/backup/config.cfg
-    echo "Location of mysql database: $mysql_path"
+    source "$script_location/config.cfg"
+    echo "Location of databases: $database_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
     echo "Location of Emoncms: $emoncms_location"
     echo "Backup destination: $backup_location"
 else
-    echo "ERROR: Backup /home/pi/backup/config.cfg file does not exist"
+    echo "ERROR: Backup $script_location/backup/config.cfg file does not exist"
     exit 1
     sudo service feedwriter start > /dev/null
 fi
+
+module_location="${emoncms_location}/Modules/backup"
+echo "emoncms backup module location $module_location"
 
 #-----------------------------------------------------------------------------------------------
 # Remove Old backup files
@@ -55,14 +59,15 @@ else
 fi
 #-----------------------------------------------------------------------------------------------
 
+# Disabled in @borphin commit?
 sudo service feedwriter stop
 
 # Get MYSQL authentication details from settings.php
-if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
-    auth=$(echo $emoncms_location | php /home/pi/backup/get_emoncms_mysql_auth.php php)
-    IFS=":" read username password <<< "$auth"
+if [ -f $script_location/get_emoncms_mysql_auth.php ]; then
+    auth=$(echo $emoncms_location | php $script_location/get_emoncms_mysql_auth.php php)
+    IFS=":" read username password database <<< "$auth"
 else
-    echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
+    echo "Error: cannot read MYSQL authentication details from Emoncms $script_location/get_emoncms_mysql_auth.php php & settings.php"
     echo "$PWD"
     sudo service feedwriter start > /dev/null
     exit 1
@@ -70,36 +75,76 @@ fi
 
 # MYSQL Dump Emoncms database
 if [ -n "$username" ]; then # if username string is not empty
-    mysqldump -u$username -p$password emoncms > $backup_location/emoncms.sql
+    mysqldump -u$username -p$password $database > $backup_location/emoncms.sql
     if [ $? -ne 0 ]; then
         echo "Error: failed to export mysql data"
         echo "emoncms export failed"
         sudo service feedwriter start > /dev/null
         exit 1
     fi
-
 else
     echo "Error: Cannot read MYSQL authentication details from Emoncms settings.php"
     sudo service feedwriter start > /dev/null
     exit 1
 fi
 
-echo "Emoncms MYSQL database dump complete, adding to archive..."
-
-# Create backup archive and add config files stripping out the path
-tar -cf $backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql $emonhub_config_path/emonhub.conf $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
-if [ $? -ne 0 ]; then
-    echo "Error: failed to tar config data"
-    echo "emoncms export failed"
-    sudo service feedwriter start > /dev/null
-    exit 1
+if [ -f $backup_location/emoncms.sql ]
+then
+  echo "-- adding $backup_location/emoncms.sql to archive --"
+  tar -c --file=$backup_location/emoncms-backup-$date.tar $backup_location/emoncms.sql --transform 's?.*/??g' 2>&1
+else
+    echo "no file $backup_location/emoncms.sql"
 fi
 
-echo "Adding phpfina feed data to archive..."
+if [ -f $emonhub_config_path/emonhub.conf ]
+then
+  echo "-- adding $emonhub_config_path/emonhub.conf to archive --"
+  tar -vr --file=$backup_location/emoncms-backup-$date.tar $emonhub_config_path/emonhub.conf --transform 's?.*/??g' 2>&1
+else
+    echo "no file $emonhub_config_path/emonhub.conf"
+fi
+
+if [ -f $emoncms_location/settings.php ]
+then
+  echo "-- adding $emoncms_location/settings.php to archive --"
+  tar -vr --file=$backup_location/emoncms-backup-$date.tar $emoncms_location/settings.php --transform 's?.*/??g' 2>&1
+else
+    echo "no file $emoncms_location/settings.php"
+fi
+
 # Append database folder to the archive with absolute path
-tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phpfina
-echo "Adding phptimeseries feed data to archive..."
-tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $mysql_path phptimeseries
+if [ -d $database_path/phpfina ]
+then
+  echo "-- adding $database_path/phpfina to archive --"
+  tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $database_path phpfina 2>&1
+  if [ $? -ne 0 ]; then
+    echo "Error: failed to tar phpfina"
+  fi
+else
+    echo "no phpfina directory"
+fi
+
+if [ -d $database_path/phpfiwa ]
+then
+  echo "-- adding $database_path/phpfiwa to archive --"
+  tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $database_path phpfiwa 2>&1
+  if [ $? -ne 0 ]; then
+    echo "Error: failed to tar phpfiwa"
+  fi
+else
+    echo "no phpfiwa directory"
+fi
+
+if [ -d $database_path/phptimeseries ]
+then
+  echo "-- adding $database_path/phptimeseries to archive --"
+  tar -vr --file=$backup_location/emoncms-backup-$date.tar -C $database_path phptimeseries 2>&1
+  if [ $? -ne 0 ]; then
+    echo "Error: failed to tar phptimeseries"
+  fi
+else
+    echo "no phptimeseries directory $database_path/phptimeseries"
+fi
 
 # Compress backup
 echo "Compressing archive..."
