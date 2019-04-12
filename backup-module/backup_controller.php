@@ -14,22 +14,32 @@
 
 function backup_controller()
 {
-    global $route, $session, $path, $redis;
+    global $route, $session, $path, $redis, $homedir;
     $result = false;
 
+    // This module is only to be ran by the admin user
+    if (!$session['write'] && !$session['admin']) {
+        $route->format = "text";
+        return "<br><div class='alert alert-error'><b>Error:</b> backup module requires admin access</div>";
+    }
+    if (file_exists("$homedir/backup/config.cfg")) {
+        $parsed_ini = parse_ini_file("$homedir/backup/config.cfg", true);
+    } else if (file_exists("$homedir/modules/backup/config.cfg")) {
+        $parsed_ini = parse_ini_file("$homedir/modules/backup/config.cfg", true);
+    } else {
+        return "<br><div class='alert alert-error'><b>Error:</b> missing backup config.cfg</div>";
+    }
+    
     $export_flag = "/tmp/emoncms-flag-export";
-    $export_script = "/home/pi/backup/emoncms-export.sh";
-    $export_logfile = "/home/pi/data/emoncms-export.log";
+    $export_script = $parsed_ini['backup_script_location']."/emoncms-export.sh";
+    $export_logfile = $parsed_ini['backup_location']."/emoncms-export.log";
 
     $import_flag = "/tmp/emoncms-flag-import";
-    $import_script = "/home/pi/backup/emoncms-import.sh";
-    $import_logfile = "/home/pi/data/emoncms-import.log";
-
-    // This module is only to be ran by the admin user
-    if (!$session['write'] && !$session['admin']) return array('content'=>false);
+    $import_script = $parsed_ini['backup_script_location']."/emoncms-import.sh";
+    $import_logfile = $parsed_ini['backup_location']."/emoncms-import.log";
 
     if ($route->format == 'html' && $route->action == "") {
-        $result = view("Modules/backup/backup_view.php",array());
+        $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini));
     }
 
     if ($route->action == 'start') {
@@ -58,7 +68,7 @@ function backup_controller()
         header("Content-Disposition: attachment; filename=$backup_filename");
         header("Pragma: no-cache");
         header("Expires: 0");
-        readfile("/home/pi/data/$backup_filename");
+        readfile($parsed_ini['backup_location']."/".$backup_filename);
         exit;
     }
 
@@ -67,7 +77,7 @@ function backup_controller()
         // ini_set('upload_max_filesize', '200M');
         // ini_set('post_max_size', '200M');
         $uploadOk = 1;
-        $target_path = "/home/pi/data/uploads/";
+        $target_path = $parsed_ini['backup_location']."/uploads/";
         $target_path = $target_path . basename( $_FILES['file']['name']);
         
         $imageFileType = pathinfo($target_path,PATHINFO_EXTENSION);
@@ -82,9 +92,9 @@ function backup_controller()
         if ((move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) && ($uploadOk == 1)) {
 
             $redis->rpush("service-runner","$import_script $import_flag>$import_logfile");
-            header('Location: '.$path.'backup');
+            header('Location: '.$path.'backup#import');
         } else {
-            $result = "Sorry, there was an error uploading the file";
+            return "<br><div class='alert alert-error'><b>Error:</b> Import archive not selected</div>";
         }
     }
 
