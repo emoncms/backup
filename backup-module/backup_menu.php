@@ -22,5 +22,11 @@
         'icon'=>'icon-circle-arrow-down'
     );
     
-    
+    $menu['setup'][] = array(
+        'text' => _("Backup"),
+        'path' => 'backup',
+        'icon' => 'box-add',
+        'order' => 1
+    );
+
 
