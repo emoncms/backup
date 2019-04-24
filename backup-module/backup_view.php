@@ -29,18 +29,11 @@ pre {
 </style>
 <link rel="stylesheet" href="<?php echo $path; ?>Lib/misc/sidebar.css">
 
-<div id="wrapper">
-  <div class="sidenav">
-    <div class="sidenav-inner">
-      <ul class="sidenav-menu">
-      <li><a href="#export">Export</a></li>
-      <li><a href="#import">Import</a></li>
-      </ul>
-    </div>
-  </div>
+    <ul id="backup-tabs" class="nav nav-tabs">
+      <li><a href="#home" data-toggle="tab">Import</a></li>
+      <li><a href="#profile" data-toggle="tab">Export</a></li>
+    </ul>
   
-  <div style="height:20px"></div>
-
   <?php
     if (empty($servicerunnerproc)) {
         echo "<div class='alert alert-error'><b>Warning:</b> service-runner is not running and is required. To install service-runner see <a href='https://github.com/emoncms/emoncms/blob/master/scripts/services/install-service-runner-update.md'>service-runner installation</a></div>";
@@ -93,21 +86,22 @@ pre {
     <p><i>Refresh page if log window does not update.</i></p>
     <p><i>After import is complete logout then login using the new imported account login details.</i></p>
   </div>
-</div>
-<script type="text/javascript" src="<?php echo $path; ?>Lib/misc/sidebar.js"></script>
+
+
+  
 
 <script>
-init_sidebar({menu_element:"#backup_menu"});
-var path = "<?php echo $path; ?>";
+// init_sidebar({menu_element:"#backup_menu"});
+// var path = "<?php echo $path; ?>";
 
-$("#view-import").hide();
-if (location.hash=="#export") { $("#view-import").hide(); $("#view-export").show(); }
-if (location.hash=="#import") { $("#view-import").show(); $("#view-export").hide(); }
+// $("#view-import").hide();
+// if (location.hash=="#export") { $("#view-import").hide(); $("#view-export").show(); }
+// if (location.hash=="#import") { $("#view-import").show(); $("#view-export").hide(); }
 
-$(window).on('hashchange', function() {
-    if (location.hash=="#export") { $("#view-import").hide(); $("#view-export").show(); }
-    if (location.hash=="#import") { $("#view-import").show(); $("#view-export").hide(); }
-});
+// $(window).on('hashchange', function() {
+//     if (location.hash=="#export") { $("#view-import").hide(); $("#view-export").show(); }
+//     if (location.hash=="#import") { $("#view-import").show(); $("#view-export").hide(); }
+// });
 
 export_log_update();
 import_log_update();
@@ -152,4 +146,11 @@ function import_log_update() {
     }
   });
 }
+
+$(function(){
+    $('#backup-tabs a').click(function (e) {
+      e.preventDefault();
+      $(this).tab('show');
+    })
+})
 </script>
