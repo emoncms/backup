@@ -26,83 +26,116 @@ pre {
     padding-left:20px;
     padding-top:20px;
 }
+.nav-tabs > li > a {
+    color: #999!important;
+}
+.nav-tabs > li.active > a {
+    color: #EFEFEF!important;
+}
+.nav-tabs > li > a:hover {
+    color: #FFF!important;
+}
 </style>
-<link rel="stylesheet" href="<?php echo $path; ?>Lib/misc/sidebar.css">
 
-    <ul id="backup-tabs" class="nav nav-tabs">
-      <li><a href="#home" data-toggle="tab">Import</a></li>
-      <li><a href="#profile" data-toggle="tab">Export</a></li>
-    </ul>
-  
+
+
+<ul class="nav nav-tabs mb-0 mt-3" id="backup-tabs">
+    <li class="active"><a href="#view-import">Import</a></li>
+    <li><a href="#view-export">Export</a></li>
+</ul>
+    
+<div class="tab-content">
+    <div class="tab-pane active" id="view-import">
+        <h3>Import</h3>
+        <p>Import an emoncms backup archive.</p>
+        <span style="color:red;font-weight:bold;">CAUTION ALL EMONCMS ACCOUNT DATA WILL BE OVERWRITTEN BY THE IMPORTED DATA</span><br><br>
+        <p><i>Note: Before import update to latest version of Emoncms & emonHub.</i></p>
+        <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" id="file"><br><br>
+        <input class="btn btn-danger" type="submit" name="submit" value="Import Backup">
+        </form>
+        <br><br>
+        <p><i>Note: If browser upload fails for large backup files <a href="http://github.com/emoncms/backup">follow manual import instructions.</a></i></p>
+        <pre id="import-log-bound"><div id="import-log"></div></pre>
+        <br>
+        <p><i>Refresh page if log window does not update.</i></p>
+        <p><i>After import is complete logout then login using the new imported account login details.</i></p>
+    </div>
+    <div class="tab-pane" id="view-export">
+        <h3>Export</h3>
+        <p>Export a compressed archive containing:</p>
+        <ul>
+        <li>Emoncms MYSQL database</li>
+        <li>PHPFina data files</li>
+        <li>PHPTimeSeries data files</li>
+        <li>EmonHub Config</li>
+        </ul>
+        <p>These files contain all Emoncms data including:</p>
+        <ul>
+        <li>Input processes</li>
+        <li>Feed data</li>
+        <li>Dashboards</li>
+        <li>EmonHub Config</li>
+        </ul>
+        <p>The compressed archive can be used to migrate data to another emonPi / emonBase.</p>
+        <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>
+        <br><br>
+        <pre id="export-log-bound"><div id="export-log"></div></pre>
+        <?php
+        $backup_filename="emoncms-backup-".date("Y-m-d").".tar.gz";
+        if (file_exists($parsed_ini['backup_location']."/".$backup_filename) && !file_exists("/tmp/backuplock")) {
+            echo '<br><br><b>Right Click > Download:</b><br><a href="'.$path.'backup/download">'.$backup_filename.'</a>';
+        }
+        ?>
+        <br><br>
+        <p>Once export is complete refresh page to see download link.</p>
+        <p><i>Note: Export can take a long some time, please be patient.</i></p>
+    </div>
+</div>
+
+<script>
+    $(function () {
+        // trigger tab open on click (adding hash to location)
+        $('#backup-tabs a').click(function (e) {
+            e.preventDefault();
+            var href = $(e.target).attr('href');
+            selectTab(href.replace('view-',''));
+            // show tab
+            $(this).tab('show');
+            // change hash
+            location.hash = href.replace('view-','');
+        })
+        // pre-select tab on load
+        // @todo: fix slight delay from ajax calls
+        selectTab();
+
+        // on hash change
+        $(window).on('hashchange', function(event) {
+            selectTab(location.hash);
+        })
+        /**
+         * loop through all tabs and highlight one if given [hash] is a match
+         */
+        function selectTab(hash) {
+            hash = hash || location.hash;
+
+            $.each($('#backup-tabs a'), function(i,elem) {
+                var $tab = $(elem);
+                if($tab.attr('href') == hash.replace('#','#view-')) {
+                    $tab.tab('show');
+                }
+            });
+        }
+})
+</script>
+
   <?php
     if (empty($servicerunnerproc)) {
         echo "<div class='alert alert-error'><b>Warning:</b> service-runner is not running and is required. To install service-runner see <a href='https://github.com/emoncms/emoncms/blob/master/scripts/services/install-service-runner-update.md'>service-runner installation</a></div>";
     }
   ?>
-  <div id="view-export">
-    <h3>Export</h3>
-    <p>Export a compressed archive containing:</p>
-    <ul>
-      <li>Emoncms MYSQL database</li>
-      <li>PHPFina data files</li>
-      <li>PHPTimeSeries data files</li>
-      <li>EmonHub Config</li>
-    </ul>
-    <p>These files contain all Emoncms data including:</p>
-    <ul>
-      <li>Input processes</li>
-      <li>Feed data</li>
-      <li>Dashboards</li>
-      <li>EmonHub Config</li>
-    </ul>
-    <p>The compressed archive can be used to migrate data to another emonPi / emonBase.</p>
-    <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>
-    <br><br>
-    <pre id="export-log-bound"><div id="export-log"></div></pre>
-    <?php
-    $backup_filename="emoncms-backup-".date("Y-m-d").".tar.gz";
-    if (file_exists($parsed_ini['backup_location']."/".$backup_filename) && !file_exists("/tmp/backuplock")) {
-        echo '<br><br><b>Right Click > Download:</b><br><a href="'.$path.'backup/download">'.$backup_filename.'</a>';
-    }
-    ?>
-    <br><br>
-    <p>Once export is complete refresh page to see download link.</p>
-    <p><i>Note: Export can take a long some time, please be patient.</i></p>
-  </div>
-  
-  <div id="view-import">
-    <h3>Import</h3>
-    <p>Import an emoncms backup archive.</p>
-    <span style="color:red;font-weight:bold;">CAUTION ALL EMONCMS ACCOUNT DATA WILL BE OVERWRITTEN BY THE IMPORTED DATA</span><br><br>
-    <p><i>Note: Before import update to latest version of Emoncms & emonHub.</i></p>
-    <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
-      <input type="file" name="file" id="file"><br><br>
-      <input class="btn btn-danger" type="submit" name="submit" value="Import Backup">
-    </form>
-    <br><br>
-    <p><i>Note: If browser upload fails for large backup files <a href="http://github.com/emoncms/backup">follow manual import instructions.</a></i></p>
-    <pre id="import-log-bound"><div id="import-log"></div></pre>
-    <br>
-    <p><i>Refresh page if log window does not update.</i></p>
-    <p><i>After import is complete logout then login using the new imported account login details.</i></p>
-  </div>
-
-
-  
 
 <script>
-// init_sidebar({menu_element:"#backup_menu"});
-// var path = "<?php echo $path; ?>";
-
-// $("#view-import").hide();
-// if (location.hash=="#export") { $("#view-import").hide(); $("#view-export").show(); }
-// if (location.hash=="#import") { $("#view-import").show(); $("#view-export").hide(); }
-
-// $(window).on('hashchange', function() {
-//     if (location.hash=="#export") { $("#view-import").hide(); $("#view-export").show(); }
-//     if (location.hash=="#import") { $("#view-import").show(); $("#view-export").hide(); }
-// });
-
 export_log_update();
 import_log_update();
 var export_updater = false;
@@ -139,7 +172,6 @@ function import_log_update() {
       $("#import-log").html(result);
       document.getElementById("import-log-bound").scrollTop = document.getElementById("import-log-bound").scrollHeight
 
-
       if (result.indexOf("=== Emoncms import complete! ===")!=-1) {
           clearInterval(import_updater);
       }
@@ -147,10 +179,5 @@ function import_log_update() {
   });
 }
 
-$(function(){
-    $('#backup-tabs a').click(function (e) {
-      e.preventDefault();
-      $(this).tab('show');
-    })
-})
+
 </script>
