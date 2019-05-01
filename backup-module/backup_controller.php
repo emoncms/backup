@@ -16,10 +16,9 @@ function backup_controller()
 {
     global $route, $session, $path, $redis, $homedir;
     $result = false;
-
     // This module is only to be ran by the admin user
     if (!$session['write'] && !$session['admin']) {
-        $route->format = "text";
+        $route->format = "html";
         return "<br><div class='alert alert-error'><b>Error:</b> backup module requires admin access</div>";
     }
     if (file_exists("$homedir/backup/config.cfg")) {
