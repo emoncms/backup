@@ -27,10 +27,10 @@ pre {
     padding-top:20px;
 }
 .nav-tabs > li > a {
-    color: #999!important;
+    color: #ddd!important;
 }
 .nav-tabs > li.active > a {
-    color: #ddd!important;
+    color: #333!important;
 }
 .nav-tabs > li > a:hover {
     color: #333!important;
