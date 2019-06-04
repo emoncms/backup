@@ -27,7 +27,7 @@ pre {
     padding-top:20px;
 }
 .nav-tabs > li > a {
-    color: #ddd!important;
+    color: #999!important;
 }
 .nav-tabs > li.active > a {
     color: #333!important;
