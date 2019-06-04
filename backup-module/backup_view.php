@@ -30,10 +30,10 @@ pre {
     color: #999!important;
 }
 .nav-tabs > li.active > a {
-    color: #EFEFEF!important;
+    color: #ddd!important;
 }
 .nav-tabs > li > a:hover {
-    color: #FFF!important;
+    color: #333!important;
 }
 </style>
 
