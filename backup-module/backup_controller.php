@@ -14,7 +14,7 @@
 
 function backup_controller()
 {
-    global $route, $session, $path, $redis, $homedir;
+    global $route, $session, $path, $redis, $homedir, $log_location;
     $result = false;
     // This module is only to be ran by the admin user
     if (!$session['write'] && !$session['admin']) {
@@ -31,11 +31,11 @@ function backup_controller()
     
     $export_flag = "/tmp/emoncms-flag-export";
     $export_script = $parsed_ini['backup_script_location']."/emoncms-export.sh";
-    $export_logfile = $parsed_ini['backup_location']."/emoncms-export.log";
+    $export_logfile = $log_location."/exportbackup.log";
 
     $import_flag = "/tmp/emoncms-flag-import";
     $import_script = $parsed_ini['backup_script_location']."/emoncms-import.sh";
-    $import_logfile = $parsed_ini['backup_location']."/emoncms-import.log";
+    $import_logfile = $log_location."/importbackup.log";
 
     if ($route->format == 'html' && $route->action == "") {
         $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini));
