@@ -14,17 +14,15 @@
 
 function backup_controller()
 {
-    global $route, $session, $path, $redis, $homedir, $log_location;
+    global $route, $session, $path, $redis, $linked_modules_dir, $log_location;
     $result = false;
     // This module is only to be ran by the admin user
     if (!$session['write'] && !$session['admin']) {
         $route->format = "html";
         return "<br><div class='alert alert-error'><b>Error:</b> backup module requires admin access</div>";
     }
-    if (file_exists("$homedir/backup/config.cfg")) {
-        $parsed_ini = parse_ini_file("$homedir/backup/config.cfg", true);
-    } else if (file_exists("$homedir/modules/backup/config.cfg")) {
-        $parsed_ini = parse_ini_file("$homedir/modules/backup/config.cfg", true);
+    if (file_exists("$linked_modules_dir/backup/config.cfg")) {
+        $parsed_ini = parse_ini_file("$linked_modules_dir/backup/config.cfg", true);
     } else {
         return "<br><div class='alert alert-error'><b>Error:</b> missing backup config.cfg</div>";
     }

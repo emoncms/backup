@@ -1,5 +1,5 @@
 <?php
-    global $path, $homedir;    
+    global $path;    
     @exec('ps ax | grep service-runner.py | grep -v grep', $servicerunnerproc);
 ?>
 
