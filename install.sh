@@ -15,9 +15,8 @@ upload_dir=$usrdir/data/uploads
 # fi
 
 # php_ini=/etc/php5/apache2/php.ini
-# php_ini=/etc/php/7.0/apache2/php.ini
-# the path will not stay /etc/php/7.0/apache2 so lets try something more portable
-php_ini=$(php --ini | grep Loaded | tr -d " " | cut -d":" -f2)
+PHP_VER=$(php -v | head -n 1 | cut -d " " -f 2 | cut -f1-2 -d"." )
+php_ini=/etc/php/$PHP_VER/apache2/php.ini
 
 # Modify php.ini
 echo "- applying php.ini modifications"
