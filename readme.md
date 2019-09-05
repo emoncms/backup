@@ -18,7 +18,7 @@ Via Emoncms module web interface [(see video screencast guide)](https://www.yout
 
 - Latest emoncms master or stable branch
 - Emoncms with redis enabled
-- Emoncms with service-runner service running
+- Emoncms with service-runner service running (see: [Emoncms: Install Service-runner](https://github.com/emoncms/emoncms/blob/master/scripts/services/install-service-runner-update.md))
  
 Install this module within your emoncms usr folder:
 
