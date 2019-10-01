@@ -104,6 +104,14 @@ else
     echo "no file $emonhub_config_path/emonhub.conf"
 fi
 
+if [ -f $emoncms_location/settings.ini ]
+then
+  echo "-- adding $emoncms_location/settings.ini to archive --"
+  tar -vr --file=$backup_location/emoncms-backup-$date.tar $emoncms_location/settings.ini --transform 's?.*/??g' 2>&1
+else
+    echo "no file $emoncms_location/settings.ini"
+fi
+
 if [ -f $emoncms_location/settings.php ]
 then
   echo "-- adding $emoncms_location/settings.php to archive --"
