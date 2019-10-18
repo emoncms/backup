@@ -147,11 +147,10 @@ fi
 sudo rm $backup_location/import/emoncms.sql
 
 # Save previous config settings as old.emonhub.conf
-echo "Import emonhub.conf > $emonhub_config_path/old.emohub.conf"
-mv $backup_location/import/emonhub.conf $emonhub_config_path/old.emonhub.conf
-echo "emonhub.conf files restored as old.emonhub.conf, original file not modified. Please merge manually."
-
-
+echo "Import emonhub.conf > $emonhub_config_path/emohub.conf"
+sudo mv $backup_location/import/emonhub.conf $emonhub_config_path/emonhub.conf
+sudo chmod 666 $emonhub_config_path/emonhub.conf
+ 
 # Start with blank emonhub.conf
 if [[ $image == "old" ]]
 then    # Legacy image use emonhub.conf without MQTT authenitication
