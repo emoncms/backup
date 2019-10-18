@@ -147,21 +147,23 @@ fi
 sudo rm $backup_location/import/emoncms.sql
 
 # Save previous config settings as old.emonhub.conf
-echo "Import emonhub.conf > $emonhub_config_path/emohub.conf"
-sudo mv $backup_location/import/emonhub.conf $emonhub_config_path/emonhub.conf
-sudo chmod 666 $emonhub_config_path/emonhub.conf
+if [ -f $backup_location/import/emonhub.conf ]; then
+    echo "Import emonhub.conf > $emonhub_config_path/emohub.conf"
+    sudo mv $backup_location/import/emonhub.conf $emonhub_config_path/emonhub.conf
+    sudo chmod 666 $emonhub_config_path/emonhub.conf
+fi
  
 # Start with blank emonhub.conf
-if [[ $image == "old" ]]
-then    # Legacy image use emonhub.conf without MQTT authenitication
-   echo "Start with fresh config: copy LEGACY default.emonhub.conf:"
-   echo "cp $emonhub_specimen_config/old.default.emonhub.conf $emonhub_config_path/emonhub.conf"
-   cp $emonhub_specimen_config/old.default.emonhub.conf $emonhub_config_path/emonhub.conf
-else    # Newer Feb15+ image use latest emonhub.conf with MQTT node variable topic structure and MQTT authentication enabled
-   echo "Start with fresh config: copy NEW default emonpi.emonhub.conf:"
-   echo "cp $emonhub_specimen_config/emonpi.default.emonhub.conf $emonhub_config_path/emonhub.conf"
-   cp $emonhub_specimen_config/emonpi.default.emonhub.conf $emonhub_config_path/emonhub.conf
-fi
+# if [[ $image == "old" ]]
+# then    # Legacy image use emonhub.conf without MQTT authenitication
+#    echo "Start with fresh config: copy LEGACY default.emonhub.conf:"
+#    echo "cp $emonhub_specimen_config/old.default.emonhub.conf $emonhub_config_path/emonhub.conf"
+#    cp $emonhub_specimen_config/old.default.emonhub.conf $emonhub_config_path/emonhub.conf
+# else    # Newer Feb15+ image use latest emonhub.conf with MQTT node variable topic structure and MQTT authentication enabled
+#    echo "Start with fresh config: copy NEW default emonpi.emonhub.conf:"
+#    echo "cp $emonhub_specimen_config/emonpi.default.emonhub.conf $emonhub_config_path/emonhub.conf"
+#    cp $emonhub_specimen_config/emonpi.default.emonhub.conf $emonhub_config_path/emonhub.conf
+# fi
 
 redis-cli "flushall" 2>&1
 
