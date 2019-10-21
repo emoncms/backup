@@ -14,8 +14,6 @@ then
     echo "Location of data databases: $database_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
     echo "Location of Emoncms: $emoncms_location"
-    echo "Backup destination: $backup_location"
-    echo "Backup source path: $backup_source_path"
 else
     echo "ERROR: Backup $script_location/backup/config.cfg file does not exist"
     exit 1
@@ -98,8 +96,14 @@ if [ $disk ]; then
     fi
     
     echo "Manual install of emoncms database"
-    sudo cp -r /media/old_sd_root/var/lib/mysql/emoncms /var/lib/mysql/emoncms
-    
+    # New structure
+    if [ -d /media/old_sd_root/var/lib/mysql/emoncms ]; then
+        sudo cp -r /media/old_sd_root/var/lib/mysql/emoncms /var/lib/mysql/emoncms
+    # Old structure
+    elif [ -d /media/old_sd_data/mysql/emoncms ]; then
+        sudo cp -r /media/old_sd_data/mysql/emoncms /var/lib/mysql/emoncms
+    fi
+        
     echo "Setting database ownership"
     sudo chown mysql:mysql /var/lib/mysql/emoncms
     sudo chown -R mysql:mysql /var/lib/mysql/emoncms
@@ -118,7 +122,7 @@ if [ $disk ]; then
     # ---------------------------------------------------------------
     # Copy over phpfina files
     # --------------------------------------------------------------- 
-    echo "Clearning data folders"
+    echo "Clearing data folders"
     sudo rm -rf $database_path/{phpfina,phptimeseries} 2> /dev/null
     
     echo "Copying PHPFina feed data"
@@ -131,9 +135,15 @@ if [ $disk ]; then
 
     # ---------------------------------------------------------------
     # Copy emonhub conf
-    # --------------------------------------------------------------- 
-    sudo cp -fv /media/old_sd_root/etc/emonhub/emonhub.conf /etc/emonhub/emonhub.conf
-    
+    # ---------------------------------------------------------------
+    # New structure
+    if [ -f /media/old_sd_root/etc/emonhub/emonhub.conf ]; then
+        sudo cp -fv /media/old_sd_root/etc/emonhub/emonhub.conf $emonhub_config_path/emonhub.conf
+    fi
+    # Old structure
+    if [ -f /media/old_sd_data/emonhub.conf ]; then
+        sudo cp -fv /media/old_sd_data/emonhub.conf $emonhub_config_path/emonhub.conf
+    fi
     # ---------------------------------------------------------------
     # Clear redis and restart services
     # --------------------------------------------------------------- 
@@ -166,4 +176,3 @@ if [ $disk ]; then
     echo "=== Emoncms import complete! ==="
     sudo service apache2 restart
 fi
-
