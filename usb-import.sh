@@ -96,12 +96,15 @@ if [ $disk ]; then
     fi
     
     echo "Manual install of emoncms database"
-    # New structure
-    if [ -d /media/old_sd_root/var/lib/mysql/emoncms ]; then
-        sudo cp -r /media/old_sd_root/var/lib/mysql/emoncms /var/lib/mysql/emoncms
+    
     # Old structure
-    elif [ -d /media/old_sd_data/mysql/emoncms ]; then
-        sudo cp -r /media/old_sd_data/mysql/emoncms /var/lib/mysql/emoncms
+    if sudo test -d "/media/old_sd_data/mysql/emoncms"; then
+        sudo cp -rv /media/old_sd_data/mysql/emoncms /var/lib/mysql/emoncms
+    # New structure
+    elif sudo test -d "/media/old_sd_root/var/lib/mysql/emoncms"; then
+        sudo cp -rv /media/old_sd_root/var/lib/mysql/emoncms /var/lib/mysql/emoncms
+    else
+        echo "could not find mysql database"
     fi
         
     echo "Setting database ownership"
