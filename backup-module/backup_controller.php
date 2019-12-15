@@ -35,13 +35,16 @@ function backup_controller()
     $import_script = $parsed_ini['backup_script_location']."/emoncms-import.sh";
     $import_logfile = $settings['log']['location']."/importbackup.log";
 
+    $usb_import_flag = "/tmp/emoncms-flag-usb-import";
+    $usb_import_script = $parsed_ini['backup_script_location']."/usb-import.sh";
+    $usb_import_logfile = $settings['log']['location']."/usbimport.log";
+
     if ($route->format == 'html' && $route->action == "") {
         $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini));
     }
 
     if ($route->action == 'start') {
         $route->format = "text";
-        
         $redis->rpush("service-runner","$export_script $export_flag>$export_logfile");
     }
 
@@ -59,6 +62,13 @@ function backup_controller()
         $result = trim(ob_get_clean());
     }
 
+    if ($route->action == 'usbimportlog') {
+        $route->format = "text";
+        ob_start();
+        passthru("cat $usb_import_logfile");
+        $result = trim(ob_get_clean());
+    }
+    
     if ($route->action == "download") {
         header("Content-type: application/zip");
         $backup_filename="emoncms-backup-".date("Y-m-d").".tar.gz";
@@ -93,6 +103,12 @@ function backup_controller()
         } else {
             return "<br><div class='alert alert-error'><b>Error:</b> Import archive not selected</div>";
         }
+    }
+    
+    if ($route->action == "usbimport") {
+        $route->format = "text";
+        $result = "Starting USB import";
+        $redis->rpush("service-runner","$usb_import_script $usb_import_flag>$usb_import_logfile");
     }
 
     return array('content'=>$result);

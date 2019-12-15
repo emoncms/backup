@@ -29,7 +29,6 @@ disk=$(find /dev/disk/by-id/ -lname '*sda')
 
 if [ $disk ]; then
     echo "Found: $disk"
-
     # ---------------------------------------------------
     # Create mount points
     # ---------------------------------------------------
@@ -178,4 +177,6 @@ if [ $disk ]; then
     # This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed here
     echo "=== Emoncms import complete! ==="
     sudo service apache2 restart
+else
+    echo "USB drive not found"
 fi
