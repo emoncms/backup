@@ -25,10 +25,21 @@ emoncms_mqtt=$(systemctl show emoncms_mqtt | grep LoadState | cut -d"=" -f2)
 
 echo
 
-disk=$(find /dev/disk/by-id/ -lname '*sda')
-
+disk=false
+# Scan through disks to find 'usb-Generic_Mass-Storage'
+for diskname in 'sda' 'sdb' 'sdc'
+  do
+  disk_id=$(find /dev/disk/by-id/ -lname "*$diskname")
+  if [ $disk_id ]; then
+      usb=$(ls $disk_id | grep 'usb-Generic_Mass-Storage')
+      if [ $usb ]; then
+          echo "Found: $disk_id at /dev/$diskname"
+          disk="$diskname"
+      fi
+  fi
+done
+    
 if [ $disk ]; then
-    echo "Found: $disk"
     # ---------------------------------------------------
     # Create mount points
     # ---------------------------------------------------
@@ -51,11 +62,11 @@ if [ $disk ]; then
     # Mount partitions
     # ---------------------------------------------------
     echo "Mounting old SD card boot partition"
-    sudo mount -r /dev/sda1 /media/old_sd_boot
+    sudo mount -r /dev/$disk'1' /media/old_sd_boot
     echo "Mounting old SD card root partition"
-    sudo mount -r /dev/sda2 /media/old_sd_root
+    sudo mount -r /dev/$disk'2' /media/old_sd_root
     echo "Mounting old SD card data partition"
-    sudo mount -r /dev/sda3 /media/old_sd_data
+    sudo mount -r /dev/$disk'3' /media/old_sd_data
 
     echo
 
@@ -169,9 +180,9 @@ if [ $disk ]; then
     # ---------------------------------------------------
     # Unmount partitions
     # ---------------------------------------------------
-    sudo umount /dev/sda1
-    sudo umount /dev/sda2
-    sudo umount /dev/sda3
+    sudo umount /dev/$disk'1'
+    sudo umount /dev/$disk'2'
+    sudo umount /dev/$disk'3'
     
     date +"%Y-%m-%d-%T"
     # This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed here
