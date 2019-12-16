@@ -139,13 +139,16 @@ if [ $disk ]; then
     sudo rm -rf $database_path/{phpfina,phptimeseries} 2> /dev/null
     
     echo "Copying PHPFina feed data"
-    sudo cp -rfv /media/old_sd_data/phpfina $database_path/phpfina
-    sudo chown -R www-data:root $database_path/phpfina
+    if sudo test -d "/media/old_sd_data/phpfina"; then
+        sudo cp -rfv /media/old_sd_data/phpfina $database_path/phpfina
+        sudo chown -R www-data:root $database_path/phpfina
+    fi
     
     echo "Copying PHPTimeSeries feed data"
-    sudo cp -rfv /media/old_sd_data/phptimeseries $database_path/phptimeseries
-    sudo chown -R www-data:root $database_path/phptimeseries
-
+    if sudo test -d "/media/old_sd_data/phptimeseries"; then
+        sudo cp -rfv /media/old_sd_data/phptimeseries $database_path/phptimeseries
+        sudo chown -R www-data:root $database_path/phptimeseries
+    fi
     # ---------------------------------------------------------------
     # Copy emonhub conf
     # ---------------------------------------------------------------
