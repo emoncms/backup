@@ -27,7 +27,6 @@ emonhub=$(systemctl show emonhub | grep LoadState | cut -d"=" -f2)
 feedwriter=$(systemctl show feedwriter | grep LoadState | cut -d"=" -f2)
 mqtt_input=$(systemctl show mqtt_input | grep LoadState | cut -d"=" -f2)
 emoncms_mqtt=$(systemctl show emoncms_mqtt | grep LoadState | cut -d"=" -f2)
-emoncms_nodes_service=$(systemctl show emoncms-nodes-service | grep LoadState | cut -d"=" -f2)
 
 #-----------------------------------------------------------------------------------------------
 # Check emonPi / emonBase image version
@@ -114,9 +113,6 @@ then # if username sring is not empty
         if [[ $emoncms_mqtt == "loaded" ]]; then
             sudo service emoncms_mqtt stop
         fi
-        if [[ $emoncms_nodes_service == "loaded" ]]; then
-            sudo service emoncms-nodes-service stop
-        fi
         echo "Emoncms MYSQL database import..."
         mysql -u$username -p$password $database < $backup_location/import/emoncms.sql
 	if [ $? -ne 0 ]; then
@@ -192,10 +188,6 @@ fi
 if [[ $emoncms_mqtt == "loaded" ]]; then
     echo "Restarting emoncms_mqtt..."
     sudo service emoncms_mqtt start
-fi
-if [[ $emoncms_nodes_service == "loaded" ]]; then
-    echo "Restarting emoncms-nodes-service..."
-    sudo service emoncms-nodes-service start
 fi
 
 date +"%Y-%m-%d-%T"
