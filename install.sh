@@ -19,11 +19,21 @@ PHP_VER=$(php -v | head -n 1 | cut -d " " -f 2 | cut -f1-2 -d"." )
 php_ini=/etc/php/$PHP_VER/apache2/php.ini
 
 # Modify php.ini
-echo "- applying php.ini modifications"
-sudo sed -i "s/^post_max_size.*/post_max_size = 3G/" $php_ini
-sudo sed -i "s/^upload_max_filesize.*/upload_max_filesize = 3G/" $php_ini
-sudo sed -i "s~^;upload_tmp_dir.*~upload_tmp_dir = $upload_dir~" $php_ini
-sudo sed -i "s~^upload_tmp_dir.*~upload_tmp_dir = $upload_dir~" $php_ini
+# echo "- applying php.ini modifications"
+# sudo sed -i "s/^post_max_size.*/post_max_size = 3G/" $php_ini
+# sudo sed -i "s/^upload_max_filesize.*/upload_max_filesize = 3G/" $php_ini
+# sudo sed -i "s~^;upload_tmp_dir.*~upload_tmp_dir = $upload_dir~" $php_ini
+# sudo sed -i "s~^upload_tmp_dir.*~upload_tmp_dir = $upload_dir~" $php_ini
+
+cat << EOF |
+post_max_size = 3G
+upload_max_filesize = 3G
+upload_tmp_dir = ${upload_dir}
+upload_tmp_dir = ${upload_dir}
+EOF
+sudo tee /etc/php/$PHP_VER/mods-available/emoncmsbackup.ini
+
+sudo phpenmod emoncmsbackup
 
 # Create uploads folder
 if [ ! -d $usrdir/data ]; then
