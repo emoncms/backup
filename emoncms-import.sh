@@ -26,6 +26,7 @@ echo "Starting import from $backup_source_path to $backup_location..."
 emonhub=$(systemctl show emonhub | grep LoadState | cut -d"=" -f2)
 feedwriter=$(systemctl show feedwriter | grep LoadState | cut -d"=" -f2)
 mqtt_input=$(systemctl show mqtt_input | grep LoadState | cut -d"=" -f2)
+emoncms_mqtt=$(systemctl show emoncms_mqtt | grep LoadState | cut -d"=" -f2)
 emoncms_nodes_service=$(systemctl show emoncms-nodes-service | grep LoadState | cut -d"=" -f2)
 
 #-----------------------------------------------------------------------------------------------
@@ -110,6 +111,9 @@ then # if username sring is not empty
         if [[ $mqtt_input == "loaded" ]]; then
             sudo service mqtt_input stop
         fi
+        if [[ $emoncms_mqtt == "loaded" ]]; then
+            sudo service emoncms_mqtt stop
+        fi
         if [[ $emoncms_nodes_service == "loaded" ]]; then
             sudo service emoncms-nodes-service stop
         fi
@@ -182,8 +186,12 @@ if [[ $feedwriter == "loaded" ]]; then
     sudo service feedwriter start
 fi
 if [[ $mqtt_input == "loaded" ]]; then
-    echo "Restarting MQTT input..."
+    echo "Restarting mqtt_input..."
     sudo service mqtt_input start
+fi
+if [[ $emoncms_mqtt == "loaded" ]]; then
+    echo "Restarting emoncms_mqtt..."
+    sudo service emoncms_mqtt start
 fi
 if [[ $emoncms_nodes_service == "loaded" ]]; then
     echo "Restarting emoncms-nodes-service..."
