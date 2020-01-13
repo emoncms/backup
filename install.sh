@@ -1,12 +1,10 @@
 #!/bin/bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 echo "Backup module installation script"
 
-usrdir=$1
-if [ "$usrdir" = "" ]; then
-    echo "usrdir argument missing"
-    exit 0
-fi
-upload_dir=$usrdir/data/uploads
+# Load backup module configuration file
+source $DIR/config.cfg
+upload_location=$backup_location/uploads
 
 # Symlink emoncms UI (if not done so already)
 # emoncms_www=/var/www/emoncms
@@ -28,23 +26,23 @@ php_ini=/etc/php/$PHP_VER/apache2/php.ini
 cat << EOF |
 post_max_size = 3G
 upload_max_filesize = 3G
-upload_tmp_dir = ${upload_dir}
-upload_tmp_dir = ${upload_dir}
+upload_tmp_dir = ${upload_location}
 EOF
 sudo tee /etc/php/$PHP_VER/mods-available/emoncmsbackup.ini
 
 sudo phpenmod emoncmsbackup
 
 # Create uploads folder
-if [ ! -d $usrdir/data ]; then
-    echo "- creating $usrdir/data directory"
-    mkdir $usrdir/data
+if [ ! -d $backup_location ]; then
+    echo "- creating $backup_location directory"
+    sudo mkdir $backup_location
+    sudo chown pi:pi $backup_location -R
 fi
 
-if [ ! -d $usrdir/data/uploads ]; then
-    echo "- creating $usrdir/data/uploads directory"
-    mkdir $usrdir/data/uploads
-    sudo chown www-data $usrdir/data/uploads -R
+if [ ! -d $backup_location/uploads ]; then
+    echo "- creating $backup_location/uploads directory"
+    sudo mkdir $backup_location/uploads
+    sudo chown www-data:pi $backup_location/uploads -R
 fi
 
 echo "- restarting apache"
