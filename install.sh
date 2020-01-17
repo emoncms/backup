@@ -18,14 +18,22 @@ if [ ! $openenergymonitor_dir ]; then
 fi
 
 # Load EmonScripts installation config.ini
-if [ -f $openenergymonitor_dir/EmonScripts/install/load_config.sh ]; then
+if [ -f $openenergymonitor_dir/EmonScripts/install/config.ini ]; then
     echo "- Loading EmonScripts config.ini"
     cd $openenergymonitor_dir/EmonScripts/install
     source load_config.sh
     cd $backup_module_dir
+    emonhub_directory=$openenergymonitor_dir/emonhub
 else 
-    echo "- EmonScripts load_config.sh not found"
-    exit 0
+    echo "- EmonScripts config.ini not found, starting manual process"
+    read -p "- Please enter system user (e.g pi): " user
+    echo "  $user"
+    read -p "- Please enter emoncms directory (e.g /var/www/emoncms): " emoncms_www
+    if [ -d $emoncms_www ]; then echo "  $emoncms_www valid"; else echo "  $emoncms_www invalid"; exit 0; fi
+    read -p "- Please enter emoncms data directory (e.g /var/opt/emoncms): " emoncms_datadir
+    if [ -d $emoncms_datadir ]; then echo "  $emoncms_datadir valid"; else echo "  $emoncms_datadir invalid"; exit 0; fi
+    read -p "- Please enter emonhub directory (e.g /opt/openenergymonitor/emonhub): " emonhub_directory
+    if [ -d $emonhub_directory ]; then echo "  $emonhub_directory valid"; else echo "  $emonhub_directory invalid"; exit 0; fi
 fi
 
 # Creating backup module config.cfg file
@@ -38,7 +46,7 @@ sed -i "s~EMONCMS_LOCATION~$emoncms_www~" config.cfg
 sed -i "s~BACKUP_LOCATION~$emoncms_datadir/backup~" config.cfg
 sed -i "s~DATABASE_PATH~$emoncms_datadir~" config.cfg
 sed -i "s~EMONHUB_CONFIG_PATH~/etc/emonhub~" config.cfg
-sed -i "s~EMONHUB_SPECIMEN_CONFIG~$openenergymonitor_dir/emonhub/conf~" config.cfg
+sed -i "s~EMONHUB_SPECIMEN_CONFIG~$emonhub_directory/conf~" config.cfg
 sed -i "s~BACKUP_SOURCE_PATH~$emoncms_datadir/backup/uploads~" config.cfg
 source config.cfg
 
