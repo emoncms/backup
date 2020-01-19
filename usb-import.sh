@@ -39,7 +39,7 @@ for diskname in 'sda' 'sdb' 'sdc'
   fi
 done
     
-if [ $disk ]; then
+if [ $disk != false ]; then
     # ---------------------------------------------------
     # Create mount points
     # ---------------------------------------------------
