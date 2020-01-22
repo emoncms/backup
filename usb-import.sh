@@ -135,9 +135,10 @@ if [ $disk != false ]; then
     # ---------------------------------------------------------------
     # Copy over phpfina files
     # --------------------------------------------------------------- 
-    echo "Clearing data folders"
-    sudo rm -rf $database_path/{phpfina,phptimeseries} 2> /dev/null
-    
+    echo "Archive old data folders"
+    sudo mv $database_path/phpfina $database_path/phpfina_old
+    sudo mv $database_path/phptimeseries $database_path/phptimeseries_old
+  
     echo "Copying PHPFina feed data"
     if sudo test -d "/media/old_sd_data/phpfina"; then
         sudo cp -rfv /media/old_sd_data/phpfina $database_path/phpfina
