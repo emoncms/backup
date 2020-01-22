@@ -16,39 +16,33 @@ Via Emoncms module web interface [(see video screencast guide)](https://www.yout
 
 **Requirements**
 
-- Latest emoncms master or stable branch
+- Latest emoncms master or stable branch, installed in /var/www/emoncms
 - Emoncms with redis enabled
 - Emoncms with service-runner service running (see: [Emoncms: Install Service-runner](https://github.com/emoncms/emoncms/blob/master/scripts/services/install-service-runner-update.md))
- 
-Install this module within your emoncms usr folder:
 
-    cd /usr/emon/emoncms_modules
+If you have not done so already, install the EmonScripts repository:
+
+    cd /opt/openenergymonitor
+    git clone https://github.com/openenergymonitor/EmonScripts.git
+ 
+Install this module in /opt/emoncms/modules:
+
+    cd /opt/emoncms/modules
     git clone https://github.com/emoncms/backup.git
     
-Symlink the sub-folder called backup-module to your emoncms Modules directory:
+Run backup module installation script to modify php.ini and setup uploads folder:
 
-    cd backup
-    ln -s $PWD/backup-module /var/www/emoncms/Modules/backup
-    
-Run backup module installation script to modify php.ini and setup uploads folder<br>(Set $usrdir to your usr directory above e.g /usr/emon):
-
-    ./install.sh $usrdir
-
-## Configure
-
-Make a copy of `default.config.cfg` called `config.cfg`. Set the paths in `config.cfg` to match your system.
+    ./install.sh
 
 ## Manual Export Instructions
 
-1. Configure paths in `config.cfg` to match your system
-2. Run `./emoncms-export.sh`
+Run `./emoncms-export.sh`
 
 ## Manual Import Instructions
 
 If importing large backup files browser upload method may fail. In this case follow:
 
-1. Configure paths in `config.cfg` to match your system
-2. Copy `emoncms-backup-xxx.tar.gz` backup file to `$usrdir/data/uploads` or whatever you have set as `data_source_path` in `config.cfg` to be
-3. Run `./emoncms-import.sh`
+1. Copy `emoncms-backup-xxx.tar.gz` backup file to `data_source_path` in `config.cfg`
+2. Run `./emoncms-import.sh`
 
 
