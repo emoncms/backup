@@ -36,9 +36,14 @@ for diskname in 'sda' 'sdb' 'sdc'
           echo "Found: $disk_id at /dev/$diskname"
           disk="$diskname"
       fi
+      usb=$(ls $disk_id | grep 'usb-Mass_Storage_Device')
+      if [ $usb ]; then
+          echo "Found: $disk_id at /dev/$diskname"
+          disk="$diskname"
+      fi
   fi
 done
-    
+
 if [ $disk != false ]; then
     # ---------------------------------------------------
     # Create mount points
