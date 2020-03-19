@@ -50,23 +50,35 @@ function backup_controller()
 
     if ($route->action == 'exportlog') {
         $route->format = "text";
-        ob_start();
-        passthru("cat $export_logfile");
-        $result = trim(ob_get_clean());
+        if (file_exists($export_logfile)) {
+            ob_start();
+            passthru("cat $export_logfile");
+            $result = trim(ob_get_clean());
+        } else {
+            $result = "";
+        }
     }
 
     if ($route->action == 'importlog') {
         $route->format = "text";
-        ob_start();
-        passthru("cat $import_logfile");
-        $result = trim(ob_get_clean());
+        if (file_exists($import_logfile)) {
+            ob_start();
+            passthru("cat $import_logfile");
+            $result = trim(ob_get_clean());
+        } else {
+            $result = "";
+        }
     }
 
     if ($route->action == 'usbimportlog') {
         $route->format = "text";
-        ob_start();
-        passthru("cat $usb_import_logfile");
-        $result = trim(ob_get_clean());
+        if (file_exists($usb_import_logfile)) {
+            ob_start();
+            passthru("cat $usb_import_logfile");
+            $result = trim(ob_get_clean());
+        } else {
+            $result = "";
+        }
     }
     
     if ($route->action == "download") {
