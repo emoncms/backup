@@ -41,6 +41,11 @@ for diskname in 'sda' 'sdb' 'sdc'
           echo "Found: $disk_id at /dev/$diskname"
           disk="$diskname"
       fi
+      usb=$(ls $disk_id | grep 'usb-Generic_STORAGE_DEVICE')
+      if [ $usb ]; then
+          echo "Found: $disk_id at /dev/$diskname"
+          disk="$diskname"
+      fi
   fi
 done
 
