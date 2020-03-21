@@ -81,7 +81,7 @@ sudo phpenmod emoncmsbackup
 if [ ! -d $backup_location ]; then
     echo "- creating $backup_location directory"
     sudo mkdir $backup_location
-    sudo chown pi:pi $backup_location -R
+    sudo chown $user:$user $backup_location -R
 else
     echo "- $backup_location already exists"
 fi
@@ -89,7 +89,7 @@ fi
 if [ ! -d $backup_location/uploads ]; then
     echo "- creating $backup_location/uploads directory"
     sudo mkdir $backup_location/uploads
-    sudo chown www-data:pi $backup_location/uploads -R
+    sudo chown www-data:$user $backup_location/uploads -R
 else
     echo "- $backup_location/uploads already exists"
 fi

@@ -167,9 +167,9 @@ fi
 
 redis-cli "flushall" 2>&1
 
-if [ -f /home/pi/emonpi/emoncmsdbupdate.php ]; then
+if [ -f /opt/openenergymonitor/EmonScripts/common/emoncmsdbupdate.php ]; then
     echo "Updating Emoncms Database.."
-    php /home/pi/emonpi/emoncmsdbupdate.php
+    php /opt/openenergymonitor/EmonScripts/common/emoncmsdbupdate.php
 fi
 
 # Restart services

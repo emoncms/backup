@@ -22,7 +22,16 @@ function backup_controller()
         return "<br><div class='alert alert-error'><b>Error:</b> backup module requires admin access</div>";
     }
     if (file_exists("$linked_modules_dir/backup/config.cfg")) {
-        $parsed_ini = parse_ini_file("$linked_modules_dir/backup/config.cfg", true);
+        $ini_string = file_get_contents("$linked_modules_dir/backup/config.cfg");
+        // Strip out comments from ini file
+        $ini_string_lines = explode("\n",$ini_string);
+        $tmp = array();
+        for ($i=0; $i<count($ini_string_lines); $i++) {
+            if (isset($ini_string_lines[$i][0]) && $ini_string_lines[$i][0]!="#") $tmp[] = $ini_string_lines[$i];
+        }
+        $ini_string_lines = $tmp;
+    
+        $parsed_ini = parse_ini_string(implode("\n",$ini_string_lines), true);
     } else {
         return "<br><div class='alert alert-error'><b>Error:</b> missing backup config.cfg</div>";
     }
@@ -50,23 +59,35 @@ function backup_controller()
 
     if ($route->action == 'exportlog') {
         $route->format = "text";
-        ob_start();
-        passthru("cat $export_logfile");
-        $result = trim(ob_get_clean());
+        if (file_exists($export_logfile)) {
+            ob_start();
+            passthru("cat $export_logfile");
+            $result = trim(ob_get_clean());
+        } else {
+            $result = "";
+        }
     }
 
     if ($route->action == 'importlog') {
         $route->format = "text";
-        ob_start();
-        passthru("cat $import_logfile");
-        $result = trim(ob_get_clean());
+        if (file_exists($import_logfile)) {
+            ob_start();
+            passthru("cat $import_logfile");
+            $result = trim(ob_get_clean());
+        } else {
+            $result = "";
+        }
     }
 
     if ($route->action == 'usbimportlog') {
         $route->format = "text";
-        ob_start();
-        passthru("cat $usb_import_logfile");
-        $result = trim(ob_get_clean());
+        if (file_exists($usb_import_logfile)) {
+            ob_start();
+            passthru("cat $usb_import_logfile");
+            $result = trim(ob_get_clean());
+        } else {
+            $result = "";
+        }
     }
     
     if ($route->action == "download") {
