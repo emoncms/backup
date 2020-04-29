@@ -1,0 +1,17 @@
+{
+    "name": "emoncms/backup",
+    "homepage": "https://emoncms.org",
+    "type": "project",
+    "support": {
+        "forum": "https://community.openenergymonitor.org/"
+    },
+    "require-dev": {
+        "jakub-onderka/php-parallel-lint": "1.0.0"
+    },
+    "scripts": {
+        "test": [
+            "parallel-lint . --exclude vendor"
+        ]
+    },
+    "license": "AGPL-3.0-or-later"
+}

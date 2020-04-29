@@ -27,25 +27,24 @@ echo
 
 disk=false
 # Scan through disks to find 'usb-Generic_Mass-Storage'
+echo "Scanning for USB card reader:"
 for diskname in 'sda' 'sdb' 'sdc'
   do
   disk_id=$(find /dev/disk/by-id/ -lname "*$diskname")
   if [ $disk_id ]; then
-      usb=$(ls $disk_id | grep 'usb-Generic_Mass-Storage')
+      echo "- Found: $disk_id at /dev/$diskname"
+      usb=$(ls $disk_id | grep 'usb-Generic')
       if [ $usb ]; then
-          echo "Found: $disk_id at /dev/$diskname"
+          echo "**Using: $disk_id at /dev/$diskname**"
           disk="$diskname"
       fi
       usb=$(ls $disk_id | grep 'usb-Mass_Storage_Device')
       if [ $usb ]; then
-          echo "Found: $disk_id at /dev/$diskname"
+          echo "**Using: $disk_id at /dev/$diskname**"
           disk="$diskname"
       fi
-      usb=$(ls $disk_id | grep 'usb-Generic_STORAGE_DEVICE')
-      if [ $usb ]; then
-          echo "Found: $disk_id at /dev/$diskname"
-          disk="$diskname"
-      fi
+  else
+      echo "- No card reader found on $diskname"
   fi
 done
 
