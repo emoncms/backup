@@ -108,22 +108,22 @@ if [ $disk != false ]; then
     
     echo "stopping mysql"
     sudo systemctl stop mariadb 
-    
+       
     if [ -d /var/lib/mysql/emoncms ]; then
-        echo "Manually deleting old mysql emoncms database"
-        sudo rm -rf /var/lib/mysql/emoncms
-    fi
-    
-    echo "Manual install of emoncms database"
-    
-    # Old structure
-    if sudo test -d "/media/old_sd_data/mysql/emoncms"; then
-        sudo cp -rv /media/old_sd_data/mysql/emoncms /var/lib/mysql/emoncms
-    # New structure
-    elif sudo test -d "/media/old_sd_root/var/lib/mysql/emoncms"; then
-        sudo cp -rv /media/old_sd_root/var/lib/mysql/emoncms /var/lib/mysql/emoncms
-    else
-        echo "could not find mysql database"
+        # Old structure
+        if sudo test -d "/media/old_sd_data/mysql/emoncms"; then
+            echo "Copying over mysql database from SD card (old structure)"
+            sudo rm -rf /var/lib/mysql/emoncms
+            sudo cp -rv /media/old_sd_data/mysql/emoncms /var/lib/mysql/emoncms
+        # New structure
+        elif sudo test -d "/media/old_sd_root/var/lib/mysql/emoncms"; then
+            echo "Copying over mysql database from SD card (new structure)"
+            sudo rm -rf /var/lib/mysql/emoncms
+            sudo cp -rv /media/old_sd_root/var/lib/mysql/emoncms /var/lib/mysql/emoncms
+        else
+            echo "could not find mysql database"
+            exit 1
+        fi
     fi
         
     echo "Setting database ownership"
