@@ -25,6 +25,24 @@ emoncms_mqtt=$(systemctl show emoncms_mqtt | grep LoadState | cut -d"=" -f2)
 
 echo
 
+# ---------------------------------------------------
+# Create mount points
+# ---------------------------------------------------
+if [ ! -d /media/old_sd_boot ]; then
+    echo "creating mount point /media/old_sd_boot"
+    sudo mkdir /media/old_sd_boot
+fi
+
+if [ ! -d /media/old_sd_root ]; then
+    echo "creating mount point /media/old_sd_root"
+    sudo mkdir /media/old_sd_root
+fi
+
+if [ ! -d /media/old_sd_data ]; then
+    echo "creating mount point /media/old_sd_data"
+    sudo mkdir /media/old_sd_data
+fi
+
 disk=false
 
 echo "Scanning for USB card reader:"
@@ -112,34 +130,6 @@ if [ $disk == false ]; then
     echo "USB drive not found"
     exit 1
 fi
-
-# ---------------------------------------------------
-# Create mount points
-# ---------------------------------------------------
-if [ ! -d /media/old_sd_boot ]; then
-    echo "creating mount point /media/old_sd_boot"
-    sudo mkdir /media/old_sd_boot
-fi
-
-if [ ! -d /media/old_sd_root ]; then
-    echo "creating mount point /media/old_sd_root"
-    sudo mkdir /media/old_sd_root
-fi
-
-if [ ! -d /media/old_sd_data ]; then
-    echo "creating mount point /media/old_sd_data"
-    sudo mkdir /media/old_sd_data
-fi
-
-# ---------------------------------------------------
-# Mount partitions
-# ---------------------------------------------------
-echo "Mounting old SD card boot partition"
-sudo mount -r /dev/$disk'1' /media/old_sd_boot
-echo "Mounting old SD card root partition"
-sudo mount -r /dev/$disk'2' /media/old_sd_root
-echo "Mounting old SD card data partition"
-sudo mount -r /dev/$disk'3' /media/old_sd_data
 
 echo
 
