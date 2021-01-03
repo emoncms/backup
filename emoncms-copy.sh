@@ -52,7 +52,7 @@ fi
 
 #-----------------------------------------------------------------------------------------------
 
-sudo service feedwriter stop
+sudo systemctl stop feedwriter
 
 # Get MYSQL authentication details from settings.php
 if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
@@ -85,7 +85,7 @@ cp /home/pi/data/node-red/settings.js $backup_location
 cp --verbose -r /home/pi/data/phpfina/. $backup_location/phpfina
 cp --verbose -r /home/pi/data/phptimeseries/. $backup_location/phptimeseries
 
-sudo service feedwriter start > /dev/null
+sudo systemctl start feedwriter > /dev/null
 
 date
 echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here

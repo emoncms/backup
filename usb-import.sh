@@ -138,13 +138,13 @@ echo
 # ---------------------------------------------------
 echo "Stopping services.."
 if [[ $emonhub == "loaded" ]]; then
-    sudo service emonhub stop
+    sudo systemctl stop emonhub
 fi
 if [[ $feedwriter == "loaded" ]]; then
-    sudo service feedwriter stop
+    sudo systemctl stop feedwriter
 fi
 if [[ $emoncms_mqtt == "loaded" ]]; then
-    sudo service emoncms_mqtt stop
+    sudo systemctl stop emoncms_mqtt
 fi
 
 # ---------------------------------------------------------------
@@ -233,15 +233,15 @@ redis-cli "flushall" 2>&1
 # Restart services
 if [[ $emonhub == "loaded" ]]; then
     echo "Restarting emonhub..."
-    sudo service emonhub start
+    sudo systemctl start emonhub
 fi
 if [[ $feedwriter == "loaded" ]]; then
     echo "Restarting feedwriter..."
-    sudo service feedwriter start
+    sudo systemctl start feedwriter
 fi
 if [[ $emoncms_mqtt == "loaded" ]]; then
     echo "Restarting emoncms MQTT..."
-    sudo service emoncms_mqtt start
+    sudo systemctl start emoncms_mqtt
 fi
 
 # ---------------------------------------------------
