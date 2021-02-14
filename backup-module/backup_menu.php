@@ -1,32 +1,5 @@
 <?php
-    // $domain = "messages";
-    // bindtextdomain($domain, "Modules/admin/locale");
-    // bind_textdomain_codeset($domain, 'UTF-8');
-    
-    // $menu_left[] = array(
-    //     'id'=>"backup_menu",
-    //     'name'=>dgettext($domain, "Backup"), 
-    //     'path'=>"backup" , 
-    //     'session'=>"write", 
-    //     'order' => 0,
-    //     'icon'=>'icon-circle-arrow-down icon-white',
-    //     'hideinactive'=>1
-    // );
 
-    // $menu_dropdown_config[] = array(
-    //     'id'=>"backup_menu_extras",
-    //     'name'=>dgettext($domain, "Backup"), 
-    //     'path'=>"backup" , 
-    //     'session'=>"write", 
-    //     'order' => 55,
-    //     'icon'=>'icon-circle-arrow-down'
-    // );
-    
-    $menu['sidebar']['emoncms'][] = array(
-        'text' => _("Backup"),
-        'path' => 'backup',
-        'icon' => 'box-add',
-        'order' => 'b5'
-    );
+if ($session["write"]) $menu["setup"]["l2"]['backup'] = array("name"=>"Backup","href"=>"backup", "order"=>9, "icon"=>"box-add");
 
 
