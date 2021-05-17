@@ -16,12 +16,11 @@ fi
 
 # Load EmonScripts installation config.ini
 if [ -f $openenergymonitor_dir/EmonScripts/install/config.ini ]; then
-    echo "- loading EmonScripts config.ini"
     cd $openenergymonitor_dir/EmonScripts/install
     source load_config.sh
     cd $backup_module_dir
     emonhub_directory=$openenergymonitor_dir/emonhub
-else 
+else
     echo "- EmonScripts config.ini not found, starting manual process"
     read -p "- Please enter system user (e.g pi): " user
     echo "  $user"
@@ -54,8 +53,6 @@ upload_location=$backup_location/uploads
 if [ ! -L $emoncms_www/Modules/backup ]; then
     echo "- symlinking backup module"
     ln -s $backup_module_dir/backup-module $emoncms_www/Modules/backup
-else
-    echo "- backup module symlink already exists"
 fi
 
 # php_ini=/etc/php5/apache2/php.ini
