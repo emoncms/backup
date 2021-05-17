@@ -19,7 +19,7 @@ then
 else
     echo "ERROR: Backup $script_location/backup/config.cfg file does not exist"
     exit 1
-    sudo service feedwriter start > /dev/null
+    sudo systemctl start feedwriter > /dev/null
 fi
 
 module_location="${emoncms_location}/Modules/backup"
@@ -60,7 +60,7 @@ fi
 #-----------------------------------------------------------------------------------------------
 
 # Disabled in @borphin commit?
-sudo service feedwriter stop
+sudo systemctl stop feedwriter
 
 # Get MYSQL authentication details from settings.php
 if [ -f $script_location/get_emoncms_mysql_auth.php ]; then
@@ -69,7 +69,7 @@ if [ -f $script_location/get_emoncms_mysql_auth.php ]; then
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms $script_location/get_emoncms_mysql_auth.php php & settings.php"
     echo "$PWD"
-    sudo service feedwriter start > /dev/null
+    sudo systemctl start feedwriter > /dev/null
     exit 1
 fi
 
@@ -79,12 +79,12 @@ if [ -n "$username" ]; then # if username string is not empty
     if [ $? -ne 0 ]; then
         echo "Error: failed to export mysql data"
         echo "emoncms export failed"
-        sudo service feedwriter start > /dev/null
+        sudo systemctl start feedwriter > /dev/null
         exit 1
     fi
 else
     echo "Error: Cannot read MYSQL authentication details from Emoncms settings.php"
-    sudo service feedwriter start > /dev/null
+    sudo systemctl start feedwriter > /dev/null
     exit 1
 fi
 
@@ -160,11 +160,11 @@ gzip -fv $backup_location/emoncms-backup-$date.tar 2>&1
 if [ $? -ne 0 ]; then
     echo "Error: failed to compress tar file"
     echo "emoncms export failed"
-    sudo service feedwriter start > /dev/null
+    sudo systemctl start feedwriter > /dev/null
     exit 1
 fi
 
-sudo service feedwriter start > /dev/null
+sudo systemctl start feedwriter > /dev/null
 
 echo "Backup saved: $backup_location/emoncms-backup-$date.tar.gz"
 date

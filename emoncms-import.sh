@@ -102,16 +102,16 @@ then # if username sring is not empty
     if [ -f $backup_location/import/emoncms.sql ]; then
         echo "Stopping services.."
         if [[ $emonhub == "loaded" ]]; then
-            sudo service emonhub stop
+            sudo systemctl stop emonhub
         fi
         if [[ $feedwriter == "loaded" ]]; then
-            sudo service feedwriter stop
+            sudo systemctl stop feedwriter
         fi
         if [[ $mqtt_input == "loaded" ]]; then
-            sudo service mqtt_input stop
+            sudo systemctl stop mqtt_input
         fi
         if [[ $emoncms_mqtt == "loaded" ]]; then
-            sudo service emoncms_mqtt stop
+            sudo systemctl stop emoncms_mqtt
         fi
         echo "Emoncms MYSQL database import..."
         mysql -u$username -p$password $database < $backup_location/import/emoncms.sql
@@ -175,22 +175,22 @@ fi
 # Restart services
 if [[ $emonhub == "loaded" ]]; then
     echo "Restarting emonhub..."
-    sudo service emonhub start
+    sudo systemctl start emonhub
 fi
 if [[ $feedwriter == "loaded" ]]; then
     echo "Restarting feedwriter..."
-    sudo service feedwriter start
+    sudo systemctl start feedwriter
 fi
 if [[ $mqtt_input == "loaded" ]]; then
     echo "Restarting mqtt_input..."
-    sudo service mqtt_input start
+    sudo systemctl start mqtt_input
 fi
 if [[ $emoncms_mqtt == "loaded" ]]; then
     echo "Restarting emoncms_mqtt..."
-    sudo service emoncms_mqtt start
+    sudo systemctl start emoncms_mqtt
 fi
 
 date +"%Y-%m-%d-%T"
 # This string is identified in the interface to stop ongoing AJAX calls in logger window, please ammend in interface if changed here
 echo "=== Emoncms import complete! ==="
-sudo service apache2 restart
+sudo systemctl restart apache2
