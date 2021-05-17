@@ -1,9 +1,6 @@
 #!/bin/bash
 backup_module_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd $backup_module_dir
-echo "--------------------------------------------"
-echo "Backup module installation and update script"
-echo "--------------------------------------------"
 openenergymonitor_dir=$1
 
 # Try default openenergymonitor directory if not specified
@@ -19,7 +16,7 @@ fi
 
 # Load EmonScripts installation config.ini
 if [ -f $openenergymonitor_dir/EmonScripts/install/config.ini ]; then
-    echo "- Loading EmonScripts config.ini"
+    echo "- loading EmonScripts config.ini"
     cd $openenergymonitor_dir/EmonScripts/install
     source load_config.sh
     cd $backup_module_dir
@@ -37,9 +34,9 @@ else
 fi
 
 # Creating backup module config.cfg file
-echo "- Copying default.config.cfg to config.cfg"
+echo "- copying default.config.cfg to config.cfg"
 cp default.config.cfg config.cfg
-echo "- Setting config.cfg settings"
+echo "- setting config.cfg settings"
 sed -i "s~USER~$user~" config.cfg
 sed -i "s~BACKUP_SCRIPT_LOCATION~$backup_module_dir~" config.cfg
 sed -i "s~EMONCMS_LOCATION~$emoncms_www~" config.cfg
@@ -55,18 +52,18 @@ upload_location=$backup_location/uploads
 
 # Symlink emoncms UI (if not done so already)
 if [ ! -L $emoncms_www/Modules/backup ]; then
-    echo "- Symlinking backup module"
+    echo "- symlinking backup module"
     ln -s $backup_module_dir/backup-module $emoncms_www/Modules/backup
 else
-    echo "- Backup module symlink already exists"
+    echo "- backup module symlink already exists"
 fi
 
 # php_ini=/etc/php5/apache2/php.ini
 PHP_VER=$(php -v | head -n 1 | cut -d " " -f 2 | cut -f1-2 -d"." )
 php_ini=/etc/php/$PHP_VER/apache2/php.ini
-echo "- PHP Version: $PHP_VER"
+# echo "- PHP Version: $PHP_VER"
 
-echo "- Creating /etc/php/$PHP_VER/mods-available/emoncmsbackup.ini"
+echo "- creating /etc/php/$PHP_VER/mods-available/emoncmsbackup.ini"
 cat << EOF |
 post_max_size = 3G
 upload_max_filesize = 3G
@@ -82,16 +79,12 @@ if [ ! -d $backup_location ]; then
     echo "- creating $backup_location directory"
     sudo mkdir $backup_location
     sudo chown $user:$user $backup_location -R
-else
-    echo "- $backup_location already exists"
 fi
 
 if [ ! -d $backup_location/uploads ]; then
     echo "- creating $backup_location/uploads directory"
     sudo mkdir $backup_location/uploads
     sudo chown www-data:$user $backup_location/uploads -R
-else
-    echo "- $backup_location/uploads already exists"
 fi
 
 echo "- restarting apache"
