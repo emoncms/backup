@@ -37,17 +37,21 @@ else
 fi
 
 # Creating backup module config.cfg file
-echo "- Copying default.config.cfg to config.cfg"
-cp default.config.cfg config.cfg
-echo "- Setting config.cfg settings"
-sed -i "s~USER~$user~" config.cfg
-sed -i "s~BACKUP_SCRIPT_LOCATION~$backup_module_dir~" config.cfg
-sed -i "s~EMONCMS_LOCATION~$emoncms_www~" config.cfg
-sed -i "s~BACKUP_LOCATION~$emoncms_datadir/backup~" config.cfg
-sed -i "s~DATABASE_PATH~$emoncms_datadir~" config.cfg
-sed -i "s~EMONHUB_CONFIG_PATH~/etc/emonhub~" config.cfg
-sed -i "s~EMONHUB_SPECIMEN_CONFIG~$emonhub_directory/conf~" config.cfg
-sed -i "s~BACKUP_SOURCE_PATH~$emoncms_datadir/backup/uploads~" config.cfg
+if [ ! -f config.cfg ]; then
+    echo "- Copying default.config.cfg to config.cfg"
+    cp default.config.cfg config.cfg
+    echo "- Setting config.cfg settings"
+    sed -i "s~USER~$user~" config.cfg
+    sed -i "s~BACKUP_SCRIPT_LOCATION~$backup_module_dir~" config.cfg
+    sed -i "s~EMONCMS_LOCATION~$emoncms_www~" config.cfg
+    sed -i "s~BACKUP_LOCATION~$emoncms_datadir/backup~" config.cfg
+    sed -i "s~DATABASE_PATH~$emoncms_datadir~" config.cfg
+    sed -i "s~EMONHUB_CONFIG_PATH~/etc/emonhub~" config.cfg
+    sed -i "s~EMONHUB_SPECIMEN_CONFIG~$emonhub_directory/conf~" config.cfg
+    sed -i "s~BACKUP_SOURCE_PATH~$emoncms_datadir/backup/uploads~" config.cfg
+else 
+    echo "- config.cfg already exists, left unmodified"
+fi
 source config.cfg
 
 # Load backup module configuration file
