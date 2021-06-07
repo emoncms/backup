@@ -4,32 +4,6 @@
 ?>
 
 <style>
-pre {
-    width:80%;
-    height:400px;
-
-    margin:0px;
-    padding:0px;
-    font-size:16px;
-    color:#fff;
-    background-color:#300a24;
-    overflow: scroll;
-    overflow-x: hidden;
-
-    font-size:16px;
-}
-#export-log {
-    padding-left:20px;
-    padding-top:20px;
-}
-#import-log {
-    padding-left:20px;
-    padding-top:20px;
-}
-#usb-import-log {
-    padding-left:20px;
-    padding-top:20px;
-}
 .nav-tabs > li > a {
     color: #999!important;
 }
@@ -58,7 +32,7 @@ pre {
         <p><i>Note: Before import update to latest version of Emoncms & emonHub.</i></p>
         <button id="usb-import" class="btn btn-danger"><?php echo _('Import from USB drive'); ?></button>
         <br><br>
-        <pre id="usb-import-log-bound"><div id="usb-import-log"></div></pre>
+        <pre id="usb-import-log-bound" class="log"><div id="usb-import-log"></div></pre>
         <br>
         <p><i>Refresh page if log window does not update.</i></p>
         <p><i>After import is complete logout then login using the new imported account login details.</i></p>
@@ -74,7 +48,7 @@ pre {
         </form>
         <br><br>
         <p><i>Note: If browser upload fails for large backup files <a href="http://github.com/emoncms/backup">follow manual import instructions.</a></i></p>
-        <pre id="import-log-bound"><div id="import-log"></div></pre>
+        <pre id="import-log-bound" class="log"><div id="import-log"></div></pre>
         <br>
         <p><i>Refresh page if log window does not update.</i></p>
         <p><i>After import is complete logout then login using the new imported account login details.</i></p>
@@ -98,7 +72,7 @@ pre {
         <p>The compressed archive can be used to migrate data to another emonPi / emonBase.</p>
         <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>
         <br><br>
-        <pre id="export-log-bound"><div id="export-log"></div></pre>
+        <pre id="export-log-bound" class="log"><div id="export-log"></div></pre>
         <?php
         $backup_filename="emoncms-backup-".date("Y-m-d").".tar.gz";
         if (file_exists($parsed_ini['backup_location']."/".$backup_filename) && !file_exists("/tmp/backuplock")) {
