@@ -1,6 +1,13 @@
 <?php
-    global $path;    
+    global $path;
     @exec('ps ax | grep service-runner.py | grep -v grep', $servicerunnerproc);
+    @exec('lsblk --raw --paths --noheadings --output PATH', $blockdevices);
+    $backup_types = [
+        'local' => 'Local backup',
+        'drive' => 'Backup to specified drive',
+        'nfs'   => 'Backup to NFS location'
+    ];
+    array_unshift($blockdevices, 'None');
 ?>
 
 <style>
@@ -12,6 +19,9 @@
 }
 .nav-tabs > li > a:hover {
     color: #333!important;
+}
+.emonpi-backup-type {
+    display: none;
 }
 </style>
 
@@ -70,6 +80,26 @@
         <li>EmonHub Config</li>
         </ul>
         <p>The compressed archive can be used to migrate data to another emonPi / emonBase.</p>
+        <select id="emonpi-backup-type">
+            <?php foreach ($backup_types AS $k => $v) : ?>
+            <option value="<?php echo $k; ?>"><?php echo $v; ?></option>
+            <?php endforeach; ?>
+        </select>
+        <br>
+        <div class="emonpi-backup-type emonpi-backup-type-nfs">
+            <label for="emonpi-backup-location">Backup location (x.x.x.x:/path/to/share)</label>
+            <input id="emonpi-backup-location" type="text" value="">
+            <br>
+        </div>
+        <div class="emonpi-backup-type emonpi-backup-type-drive">
+            <label for="emonpi-backup-device">Backup device</label>
+            <select id="emonpi-backup-device">
+                <?php foreach ($blockdevices AS $blockdevice) : ?>
+                <option value="<?php echo $blockdevice; ?>"><?php echo $blockdevice; ?></option>
+                <?php endforeach; ?>
+            </select>
+            <br>
+        </div>
         <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>
         <br><br>
         <pre id="export-log-bound" class="log"><div id="export-log"></div></pre>
@@ -87,6 +117,9 @@
 
 <script>
     $(function () {
+	$('#emonpi-backup-type').change(function(e) {
+            updateForm(this.value);
+	});
         // trigger tab open on click (adding hash to location)
         $('#backup-tabs a').click(function (e) {
             e.preventDefault();
@@ -117,8 +150,15 @@
                     $tab.tab('show');
                 }
             });
+	}
+	/**
+         * change the visible form fields
+	 */
+	function updateForm(backupType) {
+            jQuery('.emonpi-backup-type').hide();
+            jQuery('.emonpi-backup-type-'+backupType).show();
         }
-})
+    })
 </script>
 
   <?php
@@ -138,7 +178,17 @@ import_updater = setInterval(import_log_update,1000);
 usb_import_updater = setInterval(usb_import_log_update,1000);
 
 $("#emonpi-backup").click(function() {
-  $.ajax({ url: path+"backup/start", async: true, dataType: "text", success: function(result) {
+  var backupType = $('#emonpi-backup-type option:selected').val();
+  var backupLocation = 'NONE';
+  switch (backupType) {
+    case 'nfs':
+      backupLocation = $('#emonpi-backup-location').val();
+      break;
+    case 'drive':
+      backupLocation = $('#emonpi-backup-device option:selected').val();
+      break;
+  }
+  $.ajax({ url: path+"backup/start", async: true, dataType: "text", data: { backupType: backupType, backupLocation: backupLocation}, success: function(result) {
       $("#export-log").html(result);
       clearInterval(export_updater);
       export_updater = setInterval(export_log_update,1000);

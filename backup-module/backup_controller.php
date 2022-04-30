@@ -39,6 +39,8 @@ function backup_controller()
     $export_flag = "/tmp/emoncms-flag-export";
     $export_script = $parsed_ini['backup_script_location']."/emoncms-export.sh";
     $export_logfile = $settings['log']['location']."/exportbackup.log";
+    $backup_type = isset($_GET['backupType'])?$_GET['backupType']:'None';
+    $backup_location = isset($_GET['backupLocation'])?$_GET['backupLocation']:'None';
 
     $import_flag = "/tmp/emoncms-flag-import";
     $import_script = $parsed_ini['backup_script_location']."/emoncms-import.sh";
@@ -54,7 +56,7 @@ function backup_controller()
 
     if ($route->action == 'start') {
         $route->format = "text";
-        $redis->rpush("service-runner","$export_script $export_flag>$export_logfile");
+        $redis->rpush("service-runner","$export_script $backup_type $backup_location $export_flag>$export_logfile");
     }
 
     if ($route->action == 'exportlog') {
