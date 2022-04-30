@@ -1,13 +1,21 @@
 <?php
     global $path;
     @exec('ps ax | grep service-runner.py | grep -v grep', $servicerunnerproc);
-    @exec('lsblk --raw --paths --noheadings --output PATH', $blockdevices);
+    @exec('lsblk --raw --paths --noheadings --output PATH,TYPE,MOUNTPOINT', $blockdevices);
     $backup_types = [
         'local' => 'Local backup',
         'drive' => 'Backup to specified drive',
         'nfs'   => 'Backup to NFS location'
     ];
-    array_unshift($blockdevices, 'None');
+    $block_devices = [
+        'None' => 'None'
+    ];
+    foreach ($blockdevices AS $blockdevice) {
+        $parts = explode(' ', $blockdevice);
+        if (count($parts) >= 2 && $parts[1] == 'part') {
+            $block_devices[$parts[0]] = $parts[0] . (count($parts) == 3 ? " (mounted {$parts[2]})" : "");
+        }
+    }
 ?>
 
 <style>
@@ -94,8 +102,8 @@
         <div class="emonpi-backup-type emonpi-backup-type-drive">
             <label for="emonpi-backup-device">Backup device</label>
             <select id="emonpi-backup-device">
-                <?php foreach ($blockdevices AS $blockdevice) : ?>
-                <option value="<?php echo $blockdevice; ?>"><?php echo $blockdevice; ?></option>
+                <?php foreach ($block_devices AS $k => $v) : ?>
+                <option <?php echo ($k != $v ? "disabled=disabled" : ""); ?> value="<?php echo $k; ?>"><?php echo $v; ?></option>
                 <?php endforeach; ?>
             </select>
             <br>
