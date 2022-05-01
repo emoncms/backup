@@ -226,5 +226,9 @@ umount_backup
 
 echo "Backup saved: $backup_location/emoncms-backup-$date.tar.gz"
 date
-echo "Export finished...refresh page to view download link"
+
+if [ "$backup_type" == "local" ]; then
+    echo "Export finished...refresh page to view download link"
+fi
+
 echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
