@@ -99,7 +99,7 @@
             </select>
             <br>
         </div>
-        <h4>Current Schedule Script</h4>
+        <h4>Current Schedule Script (<?php echo $cron_time; ?>)</h4>
         <span id="current-schedule"></span>
         <br><br>
         <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>

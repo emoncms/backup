@@ -61,15 +61,17 @@ function backup_controller()
         ];
         $block_devices = [];
         foreach ($blockdevices AS $blockdevice) {
-            $parts = explode(' ', $blockdevice);
+            $parts = explode(' ',$blockdevice);
             $block_devices[] = [
                 "path"       => count($parts) >= 1 ? $parts[0] : '',
                 "type"       => count($parts) >= 2 ? $parts[1] : '',
                 "mountpoint" => count($parts) >= 3 ? $parts[2] : ''
             ];
         }
-        
-        $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini,'backup_types'=>$backup_types,'block_devices'=>$block_devices));
+        @exec('grep cron.daily /etc/crontab', $cron_daily);
+        $cron_daily = preg_split('/\s+/',$cron_daily[0],7);
+        $cron_time = "daily {$cron_daily[1]}:{$cron_daily[0]}";
+        $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini,'backup_types'=>$backup_types,'block_devices'=>$block_devices,'cron_time'=>$cron_time));
     }
 
     if ($route->action == 'start') {
