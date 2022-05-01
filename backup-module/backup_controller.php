@@ -41,8 +41,8 @@ function backup_controller()
     $export_flag = "/tmp/emoncms-flag-export";
     $export_script = $parsed_ini['backup_script_location']."/emoncms-export.sh";
     $export_logfile = $settings['log']['location']."/exportbackup.log";
-    $backup_type = isset($_GET['backupType'])?$_GET['backupType']:'None';
-    $backup_location = isset($_GET['backupLocation'])?$_GET['backupLocation']:'None';
+    $backup_type = preg_replace('/[^\w]/','',get('backupType'));
+    $backup_location = preg_replace('/[^\w\-:\/.]/','',get('backupLocation'));
 
     $import_flag = "/tmp/emoncms-flag-import";
     $import_script = $parsed_ini['backup_script_location']."/emoncms-import.sh";
