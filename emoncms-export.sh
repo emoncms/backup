@@ -219,6 +219,9 @@ if [ $? -ne 0 ]; then
 fi
 
 sudo systemctl start feedwriter > /dev/null
+
+# before umount delete old files
+find $backup_location -name '*.gz' -type f -mtime +8 -exec rm -f {} \;
 umount_backup
 
 echo "Backup saved: $backup_location/emoncms-backup-$date.tar.gz"
