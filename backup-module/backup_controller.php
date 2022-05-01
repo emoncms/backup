@@ -36,6 +36,8 @@ function backup_controller()
         return "<br><div class='alert alert-error'><b>Error:</b> missing backup config.cfg</div>";
     }
     
+    $schedule_file = "/etc/cron.daily/emoncms-export";
+
     $export_flag = "/tmp/emoncms-flag-export";
     $export_script = $parsed_ini['backup_script_location']."/emoncms-export.sh";
     $export_logfile = $settings['log']['location']."/exportbackup.log";
@@ -73,6 +75,29 @@ function backup_controller()
     if ($route->action == 'start') {
         $route->format = "text";
         $redis->rpush("service-runner","$export_script $backup_type $backup_location $export_flag>$export_logfile");
+    }
+
+    if ($route->action == 'schedule') {
+        $schedule_data = "#!/bin/bash\n$export_script $backup_type $backup_location $export_flag $> $export_logfile";
+        $route->format = "text";
+        file_put_contents($schedule_file, $schedule_data);
+    }
+
+    if ($route->action == 'unschedule') {
+        $schedule_data = "#!/bin/bash\n# no cron task defined";
+        $route->format = "text";
+        file_put_contents($schedule_file, $schedule_data);
+    }
+
+    if ($route->action == 'schedulefile') {
+        $route->format = "text";
+        if (file_exists($schedule_file)) {
+            ob_start();
+            passthru("cat $schedule_file");
+            $result = trim(ob_get_clean());
+        } else {
+            $result = "";
+        }
     }
 
     if ($route->action == 'exportlog') {

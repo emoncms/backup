@@ -88,5 +88,14 @@ if [ ! -d $backup_location/uploads ]; then
     sudo chown www-data:$user $backup_location/uploads -R
 fi
 
+# Create cron file
+cron_file=/etc/cron.daily/emoncms-export
+if [ ! -f $cron_file ]; then
+    echo "- creating $cron_file file"
+    sudo touch $cron_file
+    sudo chmod 775 $cron_file
+    sudo chown www-data:$user $cron_file
+fi
+
 echo "- restarting apache"
 sudo service apache2 restart

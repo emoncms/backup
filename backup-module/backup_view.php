@@ -16,6 +16,9 @@
 .emonpi-backup-type {
     display: none;
 }
+#current-schedule {
+    white-space: pre-line;
+}
 </style>
 
 
@@ -96,7 +99,12 @@
             </select>
             <br>
         </div>
+        <h4>Current Schedule Script</h4>
+        <span id="current-schedule"></span>
+        <br><br>
         <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>
+        <button id="emonpi-backup-schedule" class="btn btn-success"><?php echo _('Create backup schedule'); ?></button>
+        <button id="emonpi-backup-unschedule" class="btn btn-danger"><?php echo _('Delete backup schedule'); ?></button>
         <br><br>
         <pre id="export-log-bound" class="log"><div id="export-log"></div></pre>
         <?php
@@ -164,6 +172,7 @@
   ?>
 
 <script>
+schedule_update();
 export_log_update();
 import_log_update();
 var export_updater = false;
@@ -173,7 +182,7 @@ export_updater = setInterval(export_log_update,1000);
 import_updater = setInterval(import_log_update,1000);
 usb_import_updater = setInterval(usb_import_log_update,1000);
 
-$("#emonpi-backup").click(function() {
+function getEmonpiBackupData() {
   var backupType = $('#emonpi-backup-type option:selected').val();
   var backupLocation = 'NONE';
   switch (backupType) {
@@ -184,10 +193,31 @@ $("#emonpi-backup").click(function() {
       backupLocation = $('#emonpi-backup-device option:selected').val();
       break;
   }
-  $.ajax({ url: path+"backup/start", async: true, dataType: "text", data: { backupType: backupType, backupLocation: backupLocation}, success: function(result) {
+  return { backupType: backupType, backupLocation: backupLocation };
+}
+
+$("#emonpi-backup").click(function() {
+  var backupData = getEmonpiBackupData();
+  $.ajax({ url: path+"backup/start", async: true, dataType: "text", data: backupData, success: function(result) {
       $("#export-log").html(result);
       clearInterval(export_updater);
       export_updater = setInterval(export_log_update,1000);
+    }
+  });
+});
+
+$('#emonpi-backup-schedule').click(function() {
+  var backupData = getEmonpiBackupData();
+  $.ajax({ url: path+"backup/schedule", async: true, dataType: "text", data: backupData, success: function(result) {
+      schedule_update();
+    }
+  });
+});
+
+$('#emonpi-backup-unschedule').click(function() {
+  var backupData = getEmonpiBackupData();
+  $.ajax({ url: path+"backup/unschedule", async: true, dataType: "text", data: backupData, success: function(result) {
+      schedule_update();
     }
   });
 });
@@ -200,6 +230,14 @@ $("#usb-import").click(function() {
     }
   });
 });
+
+function schedule_update() {
+  $.ajax({ url: path+"backup/schedulefile", async: true, dataType: "text", success: function(result)
+    {
+      $("#current-schedule").html(result);
+    }
+  });
+}
 
 function export_log_update() {
   $.ajax({ url: path+"backup/exportlog", async: true, dataType: "text", success: function(result)
