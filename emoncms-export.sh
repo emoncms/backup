@@ -16,10 +16,18 @@ mount_backup() {
 mount_nfs() {
     echo "Mounting NFS $backup_destination over $backup_location"
     sudo mount -t nfs $backup_destination $backup_location
+    if [ $? -ne 0 ]; then
+        echo "Error: failed to mount $backup_destination"
+        exit 1
+    fi
 }
 mount_device() {
     echo "Mounting device $backup_destination over $backup_location"
     sudo mount -O umask=0 $backup_destination $backup_location
+    if [ $? -ne 0 ]; then
+        echo "Error: failed to mount $backup_destination"
+        exit 1
+    fi
 }
 
 umount_backup() {
