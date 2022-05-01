@@ -51,7 +51,23 @@ function backup_controller()
     $usb_import_logfile = $settings['log']['location']."/usbimport.log";
 
     if ($route->format == 'html' && $route->action == "") {
-        $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini));
+        @exec('lsblk --raw --paths --noheadings --output PATH,TYPE,MOUNTPOINT', $blockdevices);
+        $backup_types = [
+            'local' => 'Local backup',
+            'drive' => 'Backup to specified drive',
+            'nfs'   => 'Backup to NFS location'
+        ];
+        $block_devices = [];
+        foreach ($blockdevices AS $blockdevice) {
+            $parts = explode(' ', $blockdevice);
+            $block_devices[] = [
+                "path"       => count($parts) >= 1 ? $parts[0] : '',
+                "type"       => count($parts) >= 2 ? $parts[1] : '',
+                "mountpoint" => count($parts) >= 3 ? $parts[2] : ''
+            ];
+        }
+        
+        $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini,'backup_types'=>$backup_types,'block_devices'=>$block_devices));
     }
 
     if ($route->action == 'start') {
