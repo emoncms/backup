@@ -185,33 +185,44 @@ usb_import_updater = setInterval(usb_import_log_update,1000);
 function getEmonpiBackupData() {
   var backupType = $('#emonpi-backup-type option:selected').val();
   var backupLocation = 'NONE';
+  var valid = true;
   switch (backupType) {
     case 'nfs':
       backupLocation = $('#emonpi-backup-location').val();
+      if (backupLocation == '') {
+        valid = false;
+      }
       break;
     case 'drive':
       backupLocation = $('#emonpi-backup-device option:selected').val();
+      if (backupLocation == '') {
+        valid = false;
+      }
       break;
   }
-  return { backupType: backupType, backupLocation: backupLocation };
+  return { backupType: backupType, backupLocation: backupLocation, valid: valid };
 }
 
 $("#emonpi-backup").click(function() {
   var backupData = getEmonpiBackupData();
-  $.ajax({ url: path+"backup/start", async: true, dataType: "text", data: backupData, success: function(result) {
-      $("#export-log").html(result);
-      clearInterval(export_updater);
-      export_updater = setInterval(export_log_update,1000);
-    }
-  });
+  if (backupData['valid']) {
+    $.ajax({ url: path+"backup/start", async: true, dataType: "text", data: backupData, success: function(result) {
+        $("#export-log").html(result);
+        clearInterval(export_updater);
+        export_updater = setInterval(export_log_update,1000);
+      }
+    });
+  }
 });
 
 $('#emonpi-backup-schedule').click(function() {
   var backupData = getEmonpiBackupData();
-  $.ajax({ url: path+"backup/schedule", async: true, dataType: "text", data: backupData, success: function(result) {
-      schedule_update();
-    }
-  });
+  if (backupData['valid']) {
+    $.ajax({ url: path+"backup/schedule", async: true, dataType: "text", data: backupData, success: function(result) {
+        schedule_update();
+      }
+    });
+  }
 });
 
 $('#emonpi-backup-unschedule').click(function() {
