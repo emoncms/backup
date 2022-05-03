@@ -215,8 +215,7 @@ $('#emonpi-backup-schedule').click(function() {
 });
 
 $('#emonpi-backup-unschedule').click(function() {
-  var backupData = getEmonpiBackupData();
-  $.ajax({ url: path+"backup/unschedule", async: true, dataType: "text", data: backupData, success: function(result) {
+  $.ajax({ url: path+"backup/unschedule", async: true, dataType: "text", success: function(result) {
       schedule_update();
     }
   });
