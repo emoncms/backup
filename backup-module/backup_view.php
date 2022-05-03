@@ -93,7 +93,7 @@
                 <option>None</option>
                 <?php foreach ($block_devices AS $block_device) : ?>
                 <?php     if ($block_device['type'] == 'part') : ?>
-                <option <?php echo ($block_device['mountpoint'] != '' ? "disabled=disabled" : ""); ?> value="<?php echo $block_device['path']; ?>"><?php echo $block_device['path']; ?></option>
+                <option <?php echo ($block_device['mountpoint'] != '' ? "disabled=disabled" : ""); ?> value="<?php echo $block_device['path']; ?>"><?php echo $block_device['path']; ?><?php echo ($block_device['mountpoint'] != '' ? ' (mounted ' . $block_device['mountpoint'] . ')' : ''); ?></option>
                 <?php     endif; ?>
                 <?php endforeach; ?>
             </select>
