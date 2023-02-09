@@ -1,5 +1,53 @@
 #!/bin/bash
 script_location="`dirname $0`"
+backup_type=$1
+backup_destination=$2
+
+mount_backup() {
+    case $backup_type in
+        nfs)
+            mount_nfs
+            ;;
+        drive)
+            mount_device
+            ;;
+    esac
+}
+mount_nfs() {
+    echo "Mounting NFS $backup_destination over $backup_location"
+    sudo mount -t nfs $backup_destination $backup_location
+    if [ $? -ne 0 ]; then
+        echo "Error: failed to mount $backup_destination"
+        exit 1
+    fi
+}
+mount_device() {
+    echo "Mounting device $backup_destination over $backup_location"
+    sudo mount -O umask=0 $backup_destination $backup_location
+    if [ $? -ne 0 ]; then
+        echo "Error: failed to mount $backup_destination"
+        exit 1
+    fi
+}
+
+umount_backup() {
+    case $backup_type in
+        nfs)
+            umount_nfs
+            ;;
+        drive)
+            umount_device
+            ;;
+    esac
+}
+umount_nfs() {
+    echo "Unmounting NFS"
+    sudo umount $backup_location
+}
+umount_device() {
+    echo "Unmounting device"
+    sudo umount $backup_location
+}
 
 date=$(date +"%Y-%m-%d")
 
@@ -24,6 +72,8 @@ fi
 
 module_location="${emoncms_location}/Modules/backup"
 echo "emoncms backup module location $module_location"
+
+mount_backup
 
 #-----------------------------------------------------------------------------------------------
 # Remove Old backup files
@@ -70,6 +120,7 @@ else
     echo "Error: cannot read MYSQL authentication details from Emoncms $script_location/get_emoncms_mysql_auth.php php & settings.php"
     echo "$PWD"
     sudo systemctl start feedwriter > /dev/null
+    umount_backup
     exit 1
 fi
 
@@ -80,11 +131,13 @@ if [ -n "$username" ]; then # if username string is not empty
         echo "Error: failed to export mysql data"
         echo "emoncms export failed"
         sudo systemctl start feedwriter > /dev/null
+        umount_backup
         exit 1
     fi
 else
     echo "Error: Cannot read MYSQL authentication details from Emoncms settings.php"
     sudo systemctl start feedwriter > /dev/null
+    umount_backup
     exit 1
 fi
 
@@ -161,12 +214,21 @@ if [ $? -ne 0 ]; then
     echo "Error: failed to compress tar file"
     echo "emoncms export failed"
     sudo systemctl start feedwriter > /dev/null
+    umount_backup
     exit 1
 fi
 
 sudo systemctl start feedwriter > /dev/null
 
+# before umount delete old files
+find $backup_location -name '*.gz' -type f -mtime +8 -exec rm -f {} \;
+umount_backup
+
 echo "Backup saved: $backup_location/emoncms-backup-$date.tar.gz"
 date
-echo "Export finished...refresh page to view download link"
+
+if [ "$backup_type" == "local" ]; then
+    echo "Export finished...refresh page to view download link"
+fi
+
 echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here

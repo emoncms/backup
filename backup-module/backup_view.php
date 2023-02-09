@@ -1,5 +1,5 @@
 <?php
-    global $path;    
+    global $path;
     @exec('ps ax | grep service-runner.py | grep -v grep', $servicerunnerproc);
 ?>
 
@@ -12,6 +12,12 @@
 }
 .nav-tabs > li > a:hover {
     color: #333!important;
+}
+.emonpi-backup-type {
+    display: none;
+}
+#current-schedule span {
+    white-space: pre-line;
 }
 </style>
 
@@ -70,7 +76,34 @@
         <li>EmonHub Config</li>
         </ul>
         <p>The compressed archive can be used to migrate data to another emonPi / emonBase.</p>
+        <select id="emonpi-backup-type">
+            <?php foreach ($backup_types AS $k => $v) : ?>
+            <option value="<?php echo $k; ?>"><?php echo $v; ?></option>
+            <?php endforeach; ?>
+        </select>
+        <br>
+        <div class="emonpi-backup-type emonpi-backup-type-nfs">
+            <label for="emonpi-backup-location">Backup location (x.x.x.x:/path/to/share)</label>
+            <input id="emonpi-backup-location" type="text" value="">
+            <br>
+        </div>
+        <div class="emonpi-backup-type emonpi-backup-type-drive">
+            <label for="emonpi-backup-device">Backup device</label>
+            <select id="emonpi-backup-device">
+                <option>None</option>
+                <?php foreach ($block_devices AS $block_device) : ?>
+                <?php     if ($block_device['type'] == 'part') : ?>
+                <option <?php echo ($block_device['mountpoint'] != '' ? "disabled=disabled" : ""); ?> value="<?php echo $block_device['path']; ?>"><?php echo $block_device['path']; ?><?php echo ($block_device['mountpoint'] != '' ? ' (mounted ' . $block_device['mountpoint'] . ')' : ''); ?></option>
+                <?php     endif; ?>
+                <?php endforeach; ?>
+            </select>
+            <br>
+        </div>
+        <div id="current-schedule">
+	</div>
         <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>
+        <button id="emonpi-backup-schedule" class="btn btn-success"><?php echo _('Create backup schedule'); ?></button>
+        <button id="emonpi-backup-unschedule" class="btn btn-danger"><?php echo _('Delete backup schedule'); ?></button>
         <br><br>
         <pre id="export-log-bound" class="log"><div id="export-log"></div></pre>
         <?php
@@ -87,6 +120,9 @@
 
 <script>
     $(function () {
+	$('#emonpi-backup-type').change(function(e) {
+            updateForm(this.value);
+	});
         // trigger tab open on click (adding hash to location)
         $('#backup-tabs a').click(function (e) {
             e.preventDefault();
@@ -117,8 +153,15 @@
                     $tab.tab('show');
                 }
             });
+	}
+	/**
+         * change the visible form fields
+	 */
+	function updateForm(backupType) {
+            jQuery('.emonpi-backup-type').hide();
+            jQuery('.emonpi-backup-type-'+backupType).show();
         }
-})
+    })
 </script>
 
   <?php
@@ -128,6 +171,7 @@
   ?>
 
 <script>
+schedule_update();
 export_log_update();
 import_log_update();
 var export_updater = false;
@@ -137,11 +181,52 @@ export_updater = setInterval(export_log_update,1000);
 import_updater = setInterval(import_log_update,1000);
 usb_import_updater = setInterval(usb_import_log_update,1000);
 
+function getEmonpiBackupData() {
+  var backupType = $('#emonpi-backup-type option:selected').val();
+  var backupLocation = 'NONE';
+  var valid = true;
+  switch (backupType) {
+    case 'nfs':
+      backupLocation = $('#emonpi-backup-location').val();
+      if (backupLocation == '') {
+        valid = false;
+      }
+      break;
+    case 'drive':
+      backupLocation = $('#emonpi-backup-device option:selected').val();
+      if (backupLocation == '') {
+        valid = false;
+      }
+      break;
+  }
+  return { backupType: backupType, backupLocation: backupLocation, valid: valid };
+}
+
 $("#emonpi-backup").click(function() {
-  $.ajax({ url: path+"backup/start", async: true, dataType: "text", success: function(result) {
-      $("#export-log").html(result);
-      clearInterval(export_updater);
-      export_updater = setInterval(export_log_update,1000);
+  var backupData = getEmonpiBackupData();
+  if (backupData['valid']) {
+    $.ajax({ url: path+"backup/start", async: true, dataType: "text", data: backupData, success: function(result) {
+        $("#export-log").html(result);
+        clearInterval(export_updater);
+        export_updater = setInterval(export_log_update,1000);
+      }
+    });
+  }
+});
+
+$('#emonpi-backup-schedule').click(function() {
+  var backupData = getEmonpiBackupData();
+  if (backupData['valid']) {
+    $.ajax({ url: path+"backup/schedule", async: true, dataType: "text", data: backupData, success: function(result) {
+        schedule_update();
+      }
+    });
+  }
+});
+
+$('#emonpi-backup-unschedule').click(function() {
+  $.ajax({ url: path+"backup/unschedule", async: true, dataType: "text", success: function(result) {
+      schedule_update();
     }
   });
 });
@@ -154,6 +239,14 @@ $("#usb-import").click(function() {
     }
   });
 });
+
+function schedule_update() {
+  $.ajax({ url: path+"backup/scheduleinfo", async: true, dataType: "text", success: function(result)
+    {
+      $("#current-schedule").html(result);
+    }
+  });
+}
 
 function export_log_update() {
   $.ajax({ url: path+"backup/exportlog", async: true, dataType: "text", success: function(result)
