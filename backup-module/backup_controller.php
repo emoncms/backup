@@ -16,6 +16,9 @@ function backup_controller()
 {
     global $route, $session, $path, $redis, $linked_modules_dir, $settings;
     $result = false;
+
+    $empty_schedule_data = "#!/bin/bash\n# no cron task defined";
+    
     // This module is only to be ran by the admin user
     if (!$session['write'] && !$session['admin']) {
         $route->format = "html";
@@ -41,8 +44,8 @@ function backup_controller()
     $export_flag = "/tmp/emoncms-flag-export";
     $export_script = $parsed_ini['backup_script_location']."/emoncms-export.sh";
     $export_logfile = $settings['log']['location']."/exportbackup.log";
-    $backup_type = preg_replace('/[^\w]/','',get('backupType'));
-    $backup_location = preg_replace('/[^\w\-:\/.]/','',get('backupLocation'));
+    $backup_type = preg_replace('/[^\w]/','',get('backupType', false, ''));
+    $backup_location = preg_replace('/[^\w\-:\/.]/','',get('backupLocation', false, ''));
 
     $import_flag = "/tmp/emoncms-flag-import";
     $import_script = $parsed_ini['backup_script_location']."/emoncms-import.sh";
@@ -68,10 +71,7 @@ function backup_controller()
                 "mountpoint" => count($parts) >= 3 ? $parts[2] : ''
             ];
         }
-        @exec('grep cron.daily /etc/crontab', $cron_daily);
-        $cron_daily = preg_split('/\s+/',$cron_daily[0],7);
-        $cron_time = "daily {$cron_daily[1]}:{$cron_daily[0]}";
-        $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini,'backup_types'=>$backup_types,'block_devices'=>$block_devices,'cron_time'=>$cron_time));
+        $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini,'backup_types'=>$backup_types,'block_devices'=>$block_devices));
     }
 
     if ($route->action == 'start') {
@@ -86,17 +86,29 @@ function backup_controller()
     }
 
     if ($route->action == 'unschedule') {
-        $schedule_data = "#!/bin/bash\n# no cron task defined";
+        $schedule_data = $empty_schedule_data;
         $route->format = "text";
         file_put_contents($schedule_file, $schedule_data);
     }
 
-    if ($route->action == 'schedulefile') {
+    if ($route->action == 'scheduleinfo') {
         $route->format = "text";
-        if (file_exists($schedule_file)) {
-            ob_start();
-            passthru("cat $schedule_file");
-            $result = trim(ob_get_clean());
+	if (file_exists($schedule_file)) {
+            $content = trim(file_get_contents($schedule_file));
+            if ($content && $content != $empty_schedule_data) {
+                @exec('grep cron.daily /etc/crontab', $cron_daily);
+                $cron_daily = preg_split('/\s+/',$cron_daily[0],7);
+                $cron_time = "daily {$cron_daily[1]}:{$cron_daily[0]}";
+                ob_start();
+                ?>
+                <h4>Current Schedule Script (<?php echo $cron_time; ?>)</h4>
+                <span><?php echo $content; ?></span>
+                <br><br>
+                <?php
+                $result = trim(ob_get_clean());
+	    } else {
+                $result = "";
+	    }
         } else {
             $result = "";
         }

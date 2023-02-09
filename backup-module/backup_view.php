@@ -16,7 +16,7 @@
 .emonpi-backup-type {
     display: none;
 }
-#current-schedule {
+#current-schedule span {
     white-space: pre-line;
 }
 </style>
@@ -99,9 +99,8 @@
             </select>
             <br>
         </div>
-        <h4>Current Schedule Script (<?php echo $cron_time; ?>)</h4>
-        <span id="current-schedule"></span>
-        <br><br>
+        <div id="current-schedule">
+	</div>
         <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>
         <button id="emonpi-backup-schedule" class="btn btn-success"><?php echo _('Create backup schedule'); ?></button>
         <button id="emonpi-backup-unschedule" class="btn btn-danger"><?php echo _('Delete backup schedule'); ?></button>
@@ -242,7 +241,7 @@ $("#usb-import").click(function() {
 });
 
 function schedule_update() {
-  $.ajax({ url: path+"backup/schedulefile", async: true, dataType: "text", success: function(result)
+  $.ajax({ url: path+"backup/scheduleinfo", async: true, dataType: "text", success: function(result)
     {
       $("#current-schedule").html(result);
     }
