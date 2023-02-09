@@ -93,6 +93,7 @@ function backup_controller()
 
     if ($route->action == 'scheduleinfo') {
         $route->format = "text";
+        $result = "<h4>No backup scheduled</h4>";
 	if (file_exists($schedule_file)) {
             $content = trim(file_get_contents($schedule_file));
             if ($content && $content != $empty_schedule_data) {
@@ -106,11 +107,7 @@ function backup_controller()
                 <br><br>
                 <?php
                 $result = trim(ob_get_clean());
-	    } else {
-                $result = "";
 	    }
-        } else {
-            $result = "";
         }
     }
 
