@@ -1,23 +1,24 @@
 #!/bin/bash
 script_location="`dirname $0`"
+config_location=${script_location}/config.cfg
 
 date=$(date +"%Y-%m-%d")
 
 echo "=== Emoncms export start ==="
 date
 echo "Backup module version:"
-cat $script_location/backup-module/module.json | grep version
+grep version ${script_location}/module.json
 echo "EUID: $EUID"
-echo "Reading $script_location/config.cfg...."
-if [ -f "$script_location/config.cfg" ]
+echo "Reading ${config_location}...."
+if [ -f "${config_location}" ]
 then
-    source "$script_location/config.cfg"
+    source "${config_location}"
     echo "Location of databases: $database_path"
     echo "Location of emonhub.conf: $emonhub_config_path"
     echo "Location of Emoncms: $emoncms_location"
     echo "Backup destination: $backup_location"
 else
-    echo "ERROR: Backup $script_location/backup/config.cfg file does not exist"
+    echo "ERROR: Backup ${config_location} file does not exist"
     exit 1
     sudo systemctl start feedwriter > /dev/null
 fi
