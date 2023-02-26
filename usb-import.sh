@@ -16,7 +16,7 @@ then
     echo "Location of emonhub.conf: $emonhub_config_path"
     echo "Location of Emoncms: $emoncms_location"
 else
-    echo "ERROR: Backup ${config_location} file does not exist"
+    echo "ERROR: Backup config file ${config_location} does not exist"
     exit 1
 fi
 

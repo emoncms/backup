@@ -18,7 +18,7 @@ then
     echo "Location of Emoncms: $emoncms_location"
     echo "Backup destination: $backup_location"
 else
-    echo "ERROR: Backup ${config_location} file does not exist"
+    echo "ERROR: Backup config file ${config_location} does not exist"
     exit 1
     sudo systemctl start feedwriter > /dev/null
 fi

@@ -18,7 +18,7 @@ then
     echo "Backup destination: $backup_location"
     echo "Backup source path: $backup_source_path"
 else
-    echo "ERROR: Backup ${config_location} file does not exist"
+    echo "ERROR: Backup config file ${config_location} does not exist"
     exit 1
 fi
 
