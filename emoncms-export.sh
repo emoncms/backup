@@ -20,7 +20,6 @@ then
 else
     echo "ERROR: Backup config file ${config_location} does not exist"
     exit 1
-    sudo systemctl start feedwriter > /dev/null
 fi
 
 module_location="${emoncms_location}/Modules/backup"
