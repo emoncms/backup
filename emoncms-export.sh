@@ -1,5 +1,5 @@
 #!/bin/bash
-script_location="`dirname $0`"
+script_location="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 config_location=${script_location}/config.cfg
 
 date=$(date +"%Y-%m-%d")
