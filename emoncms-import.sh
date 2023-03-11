@@ -6,7 +6,7 @@ config_location=${script_location}/config.cfg
 echo "=== Emoncms import start ==="
 date +"%Y-%m-%d-%T"
 echo "Backup module version:"
-grep version ${script_location}/module.json
+grep version "${script_location}/module.json"
 echo "EUID: $EUID"
 echo "Reading ${config_location}...."
 if [ -f "${config_location}" ]
@@ -58,15 +58,15 @@ if [ ! -d $backup_source_path ]; then
 	exit 1
 fi
 
-backup_filename=$((cd $backup_source_path && ls -t *.tar.gz) | head -1)
-if [[ -z "$backup_filename" ]] #if backup does not exist (empty filename string)
+backup_filename=$(ls -t "${backup_source_path}"/*.tar.gz | head -1)
+if [[ -z "${backup_filename}" ]] #if backup does not exist (empty filename string)
 then
     echo "Error: cannot find backup, stopping import"
     exit 1
 fi
 
 # if backup exists
-echo "Backup found: $backup_filename starting import.."
+echo "Backup found: ${backup_filename} starting import.."
 
 echo "Read MYSQL authentication details from settings.php"
 if [ -f $script_location/get_emoncms_mysql_auth.php ]; then
@@ -80,27 +80,31 @@ fi
 
 
 echo "Decompressing backup.."
-if [ ! -d  $backup_location/import ]; then
-	mkdir $backup_location/import
-	sudo chown $user $backup_location/import -R
+import_location="${backup_location}/import"
+if [ -d "${import_location}" ]; then
+	sudo rm -rf "${import_location}"
+	# Belt and braces cleanup in case any '.' prefixed files exist
 fi
 
-tar xfzv $backup_source_path/$backup_filename -C $backup_location/import 2>&1
+mkdir "${import_location}"
+sudo chown "${user}" "${import_location}"
+
+tar xfzv "${backup_filename}" -C "${import_location}" 2>&1
 if [ $? -ne 0 ]; then
 	echo "Error: failed to decompress backup"
-	echo "$backup_source_path/$backup_filename has not been removed for diagnotics"
-	echo "Removing files in $backup_location/import"
-	sudo rm -Rf $backup_location/import/*
+	echo "${backup_filename} has not been removed for diagnotics"
+	echo "Removing files in ${import_location}"
+	sudo rm -Rf "${import_location}/*"
 	echo "Import failed"
 	exit 1
 fi
 
 echo "Removing compressed backup to save disk space.."
-sudo rm $backup_source_path/$backup_filename
+sudo rm "${backup_filename}"
 
 if [ -n "$password" ]
 then # if username sring is not empty
-    if [ -f $backup_location/import/emoncms.sql ]; then
+    if [ -f "${import_location}/emoncms.sql" ]; then
         echo "Stopping services.."
         if [[ $emonhub == "loaded" ]]; then
             sudo systemctl stop emonhub
@@ -115,7 +119,7 @@ then # if username sring is not empty
             sudo systemctl stop emoncms_mqtt
         fi
         echo "Emoncms MYSQL database import..."
-        mysql -u$username -p$password $database < $backup_location/import/emoncms.sql
+        mysql -u$username -p$password $database < "${import_location}/emoncms.sql"
 	if [ $? -ne 0 ]; then
 		echo "Error: failed to import mysql data"
 		echo "Import failed"
@@ -134,24 +138,28 @@ echo "Import feed meta data.."
 sudo rm -rf $database_path/{phpfina,phptimeseries} 2> /dev/null
 
 echo "Restore phpfina and phptimeseries data folders..."
-if [ -d $backup_location/import/phpfina ]; then
-	sudo mv $backup_location/import/phpfina $database_path
+if [ -d "${import_location}/phpfina" ]; then
+	sudo mv "${import_location}/phpfina" "${database_path}"
 	sudo chown -R www-data:root $database_path/phpfina
 fi
 
-if [ -d  $backup_location/import/phptimeseries ]; then
-	sudo mv $backup_location/import/phptimeseries $database_path
+if [ -d "${import_location}/phptimeseries" ]; then
+	sudo mv "${import_location}/phptimeseries" "${database_path}"
 	sudo chown -R www-data:root $database_path/phptimeseries
 fi
 
 # cleanup
-sudo rm $backup_location/import/emoncms.sql
+sudo rm "${import_location}/emoncms.sql"
 
 # Save previous config settings as old.emonhub.conf
-if [ -f $backup_location/import/emonhub.conf ]; then
-    echo "Import emonhub.conf > $emonhub_config_path/emohub.conf"
-    sudo mv $backup_location/import/emonhub.conf $emonhub_config_path/emonhub.conf
-    sudo chmod 666 $emonhub_config_path/emonhub.conf
+if [ -f "${import_location}/emonhub.conf" ]; then
+    if [ -d "${emonhub_config_path}" ]; then
+        echo "Import emonhub.conf > ${emonhub_config_path}/emohub.conf"
+        sudo mv "${import_location}/emonhub.conf" "${emonhub_config_path}/emonhub.conf"
+        sudo chmod 666 $emonhub_config_path/emonhub.conf
+    else
+        echo "WARNING: emonhub.conf found in backup, but no emonHub directory (${emonhub_config_path}) found"
+    fi
 fi
  
 # Start with blank emonhub.conf
