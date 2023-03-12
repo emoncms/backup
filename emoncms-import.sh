@@ -53,8 +53,8 @@ fi
 
 
 # Get latest backup filename
-if [ ! -d $backup_source_path ]; then
-	echo "Error: $backup_source_path does not exist, nothing to import"
+if [ ! -d "${backup_source_path}" ]; then
+	echo "Error: ${backup_source_path} does not exist, nothing to import"
 	exit 1
 fi
 
@@ -69,8 +69,8 @@ fi
 echo "Backup found: ${backup_filename} starting import.."
 
 echo "Read MYSQL authentication details from settings.php"
-if [ -f $script_location/get_emoncms_mysql_auth.php ]; then
-    auth=$(echo $emoncms_location | php $script_location/get_emoncms_mysql_auth.php php)
+if [ -f "${script_location}/get_emoncms_mysql_auth.php" ]; then
+    auth=$(echo "${emoncms_location}" | php "${script_location}/get_emoncms_mysql_auth.php" php)
     IFS=":" read username password database <<< "$auth"
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms settings.php"
@@ -119,7 +119,7 @@ then # if username sring is not empty
             sudo systemctl stop emoncms_mqtt
         fi
         echo "Emoncms MYSQL database import..."
-        mysql -u$username -p$password $database < "${import_location}/emoncms.sql"
+        mysql -u"${username}" -p"${password}" "${database}" < "${import_location}/emoncms.sql"
 	if [ $? -ne 0 ]; then
 		echo "Error: failed to import mysql data"
 		echo "Import failed"
@@ -135,17 +135,17 @@ else
 fi
 
 echo "Import feed meta data.."
-sudo rm -rf $database_path/{phpfina,phptimeseries} 2> /dev/null
+sudo rm -rf "${database_path}"/{phpfina,phptimeseries} 2> /dev/null
 
 echo "Restore phpfina and phptimeseries data folders..."
 if [ -d "${import_location}/phpfina" ]; then
 	sudo mv "${import_location}/phpfina" "${database_path}"
-	sudo chown -R www-data:root $database_path/phpfina
+	sudo chown -R www-data:root "${database_path}/phpfina"
 fi
 
 if [ -d "${import_location}/phptimeseries" ]; then
 	sudo mv "${import_location}/phptimeseries" "${database_path}"
-	sudo chown -R www-data:root $database_path/phptimeseries
+	sudo chown -R www-data:root "${database_path}/phptimeseries"
 fi
 
 # cleanup
@@ -156,7 +156,7 @@ if [ -f "${import_location}/emonhub.conf" ]; then
     if [ -d "${emonhub_config_path}" ]; then
         echo "Import emonhub.conf > ${emonhub_config_path}/emohub.conf"
         sudo mv "${import_location}/emonhub.conf" "${emonhub_config_path}/emonhub.conf"
-        sudo chmod 666 $emonhub_config_path/emonhub.conf
+        sudo chmod 666 "${emonhub_config_path}/emonhub.conf"
     else
         echo "WARNING: emonhub.conf found in backup, but no emonHub directory (${emonhub_config_path}) found"
     fi
