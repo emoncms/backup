@@ -92,7 +92,7 @@ function backup_controller()
     
     if ($route->action == "download") {
         header("Content-type: application/zip");
-        $backup_filename="emoncms-backup-".date("Y-m-d").".tar.gz";
+        $backup_filename="emoncms-backup-".gethostname()."-".date("Y-m-d").".tar.gz";
         header("Content-Disposition: attachment; filename=$backup_filename");
         header("Pragma: no-cache");
         header("Expires: 0");
@@ -120,7 +120,7 @@ function backup_controller()
         if ((move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) && ($uploadOk == 1)) {
 
             $redis->rpush("service-runner","$import_script $import_flag>$import_logfile");
-            header('Location: '.$path.'backup#import');
+            header('Location: '.$path.'backup#import-archive');
         } else {
             return "<br><div class='alert alert-error'><b>Error:</b> Import archive not selected</div>";
         }
