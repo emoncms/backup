@@ -161,7 +161,7 @@ function export_log_update() {
       $("#export-log").html(result);
       document.getElementById("export-log-bound").scrollTop = document.getElementById("export-log-bound").scrollHeight
 
-      if (result.indexOf("=== Emoncms export complete! ===")!=-1) {
+      if (result.indexOf("=== Emoncms export complete! ===")!=-1 || result.indexOf("=== Emoncms export completed with ERRORS! ===")!=-1) {
           clearInterval(export_updater);
       }
     }

@@ -1,4 +1,37 @@
 #!/bin/bash
+
+# Set the shell to trigger errors when commands within a pipe have a non-zero return code
+set -o pipefail
+
+# The errors variable is set when error_handler() is called, the variable is used by the finish() function for success or failure messages
+errors=false
+
+# This error handler function display information of what happened and where, but does NOT stop the script execution
+error_handler() {
+    echo "Error: RC=$1 occurred on line $2"
+    errors=true
+}
+
+# Set trap for ERR to pass the return code and line number to error_handler()
+trap 'error_handler $? $LINENO' ERR
+
+# Exit handler used to ensure the exit message AJAX expects is found, whilst summarising if errors were found
+# This also picks up the natural exit when reaching end of script
+
+function finish() {
+    if [[ "${errors}" == "false" && $? == 0 ]]; then
+        echo "=== Emoncms export complete! ==="
+# The strings output are identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
+    else
+        echo "=== Emoncms export completed with ERRORS! ==="
+# The strings output are identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
+    fi
+}
+
+# Set trap for whenever EXIT is called to call finish()
+trap finish EXIT
+
+declare -a included not_found
 script_location="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 config_location=${script_location}/config.cfg
 
@@ -40,7 +73,7 @@ done
 #-----------------------------------------------------------------------------------------------
 # Check emonPi / emonBase image version
 #-----------------------------------------------------------------------------------------------
-image_version=$(ls /boot | grep emonSD)
+image_version=$(cd /boot && echo *emonSD* )
 # Check first 16 characters of filename
 image_date=${image_version:0:16}
 
@@ -94,8 +127,10 @@ do
     then
         echo "-- adding ${file} to archive --"
         tar -vr --file="${tar_filename}" "${file}" --transform 's?.*/??g' 2>&1
+        included+=("${file}")
     else
         echo "no ${file} to backup"
+        not_found+=("${file}")
     fi
 done
 
@@ -105,14 +140,18 @@ do
     if [ -d "${database_path}/${dir}" ]
     then
         echo "-- adding ${database_path}/${dir} to archive --"
-        tar -vr --file="${tar_filename}" -C "${database_path}" ${dir} 2>&1
+        tar -vr --file="${tar_filename}" -C "${database_path}" "${dir}" 2>&1
         if [ $? -ne 0 ]; then
             echo "Error: failed to tar ${dir}"
         fi
+        included+=("${dir}")
     else
         echo "no ${database_path}/${dir} directory to backup"
+        not_found+=("${dir}")
     fi
 done
+
+sudo systemctl start feedwriter > /dev/null
 
 # Compress backup
 echo "Compressing archive..."
@@ -120,13 +159,14 @@ gzip -fv "${tar_filename}" 2>&1
 if [ $? -ne 0 ]; then
     echo "Error: failed to compress tar file"
     echo "emoncms export failed"
-    sudo systemctl start feedwriter > /dev/null
     exit 1
 fi
 
-sudo systemctl start feedwriter > /dev/null
-
 echo "Backup saved: ${tar_filename}.gz"
 date
+echo -e "\nBackup included components: ${included[*]}"
+echo -e "INFO: These components couldn't be found to backup: ${not_found[*]}\n"
+
 echo "Export finished...refresh page to view download link"
-echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
+
+# The exit trap will pickup the natural exit and display the string to stop ongoing AJAX calls
