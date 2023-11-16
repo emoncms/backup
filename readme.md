@@ -32,6 +32,7 @@ Install this module in /opt/emoncms/modules:
     
 Run backup module installation script to modify php.ini and setup uploads folder:
 
+    cd backup
     ./install.sh
 
 ## Manual Export Instructions
