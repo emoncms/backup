@@ -46,7 +46,7 @@ fi
 disk=false
 
 echo "Scanning for USB card reader:"
-for diskname in 'sda' 'sdb' 'sdc'
+for diskname in 'sda' 'sdb' 'sdc' 'sdd' 'sde'
   do
   if [ $disk == false ]; then
     disk_id=$(find /dev/disk/by-id/ -lname "*$diskname")
