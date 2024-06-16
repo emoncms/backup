@@ -81,7 +81,7 @@
         ?>
         <br><br>
         <p>Once export is complete refresh page to see download link.</p>
-        <p><i>Note: Export can take a long some time, please be patient.</i></p>
+        <p><i>Note: Export can take a long time; please be patient.</i></p>
     </div>
 </div>
 
