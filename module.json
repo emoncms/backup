@@ -1,6 +1,6 @@
 {
     "name"         : "Backup",
-    "version"      : "2.3.3",
+    "version"      : "2.3.4",
     "location"     : "/opt/emoncms/modules",
     "branches_available": ["stable","master"],
     "requires": []

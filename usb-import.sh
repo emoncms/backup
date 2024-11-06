@@ -220,9 +220,7 @@ fi
 # New structure
 if [ -f /media/old_sd_root/etc/emonhub/emonhub.conf ]; then
     sudo cp -fv /media/old_sd_root/etc/emonhub/emonhub.conf $emonhub_config_path/emonhub.conf
-fi
-# Old structure
-if [ -f /media/old_sd_data/emonhub.conf ]; then
+elif [ -f /media/old_sd_data/emonhub.conf ]; then
     sudo cp -fv /media/old_sd_data/emonhub.conf $emonhub_config_path/emonhub.conf
 fi
 # ---------------------------------------------------------------
