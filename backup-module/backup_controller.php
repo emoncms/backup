@@ -68,6 +68,16 @@ function backup_controller()
         }
     }
 
+    if ($route->action == 'exportlink') {
+        $route->format = "text";
+        $backup_filename="emoncms-backup-".gethostname()."-".date("Y-m-d").".tar.gz";
+        if (file_exists($parsed_ini['backup_location']."/".$backup_filename) && !file_exists("/tmp/backuplock")) {
+            $result = '<br><br><b>Right Click > Download:</b><br><a href="'.$path.'backup/download">'.$backup_filename.'</a>';
+        } else {
+            $result = '<br><br>No backup file exists for today<b></b>';
+        }
+    }
+
     if ($route->action == 'importlog') {
         $route->format = "text";
         if (file_exists($import_logfile)) {

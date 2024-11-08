@@ -73,14 +73,8 @@
         <button id="emonpi-backup" class="btn btn-info"><?php echo _('Create backup'); ?></button>
         <br><br>
         <pre id="export-log-bound" class="log"><div id="export-log"></div></pre>
-        <?php
-        $backup_filename="emoncms-backup-".gethostname()."-".date("Y-m-d").".tar.gz";
-        if (file_exists($parsed_ini['backup_location']."/".$backup_filename) && !file_exists("/tmp/backuplock")) {
-            echo '<br><br><b>Right Click > Download:</b><br><a href="'.$path.'backup/download">'.$backup_filename.'</a>';
-        }
-        ?>
+        <div id="export-link"></div>
         <br><br>
-        <p>Once export is complete refresh page to see download link.</p>
         <p><i>Note: Export can take a long time; please be patient.</i></p>
     </div>
 </div>
@@ -136,6 +130,7 @@ var usb_import_updater = false;
 export_updater = setInterval(export_log_update,1000);
 import_updater = setInterval(import_log_update,1000);
 usb_import_updater = setInterval(usb_import_log_update,1000);
+export_log_link();
 
 $("#emonpi-backup").click(function() {
   $.ajax({ url: path+"backup/start", async: true, dataType: "text", success: function(result) {
@@ -163,7 +158,16 @@ function export_log_update() {
 
       if (result.indexOf("=== Emoncms export complete! ===")!=-1 || result.indexOf("=== Emoncms export completed with ERRORS! ===")!=-1) {
           clearInterval(export_updater);
+          export_log_link();
       }
+    }
+  });
+}
+
+function export_log_link() {
+  $.ajax({ url: path+"backup/exportlink", async: true, dataType: "text", success: function(result)
+    {
+      $("#export-link").html(result);
     }
   });
 }
