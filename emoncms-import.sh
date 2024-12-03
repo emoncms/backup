@@ -119,6 +119,12 @@ then # if username sring is not empty
             sudo systemctl stop emoncms_mqtt
         fi
         echo "Emoncms MYSQL database import..."
+
+	if grep -q "enable the sandbox mode" ${import_location}/emoncms.sql ; then
+	echo "Removing sandbox mode command from emoncms.sql dump file to maintain compatibility with older MariaDB versions"
+	sed -i 1,1d ${import_location}/emoncms.sql
+	fi
+ 
         mysql -u"${username}" -p"${password}" "${database}" < "${import_location}/emoncms.sql"
 	if [ $? -ne 0 ]; then
 		echo "Error: failed to import mysql data"
