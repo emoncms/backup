@@ -24,38 +24,44 @@ fi
 
 echo "Starting import from $backup_source_path to $backup_location..."
 
-emonhub=$(systemctl show emonhub | grep LoadState | cut -d"=" -f2)
-feedwriter=$(systemctl show feedwriter | grep LoadState | cut -d"=" -f2)
-mqtt_input=$(systemctl show mqtt_input | grep LoadState | cut -d"=" -f2)
-emoncms_mqtt=$(systemctl show emoncms_mqtt | grep LoadState | cut -d"=" -f2)
+if [ ! -f "/.dockerenv" ]; then
+    emonhub=$(systemctl show emonhub | grep LoadState | cut -d"=" -f2)
+    feedwriter=$(systemctl show feedwriter | grep LoadState | cut -d"=" -f2)
+    mqtt_input=$(systemctl show mqtt_input | grep LoadState | cut -d"=" -f2)
+    emoncms_mqtt=$(systemctl show emoncms_mqtt | grep LoadState | cut -d"=" -f2)
+fi
 
 #-----------------------------------------------------------------------------------------------
 # Check emonPi / emonBase image version
 #-----------------------------------------------------------------------------------------------
-image_version=$(ls /boot | grep emonSD)
-# Check first 16 characters of filename
-image_date=${image_version:0:16}
-if [[ "${image_version:0:6}" == "emonSD" ]]
-then
-    echo "Image version: $image_version"
-fi
-
-# Very old images (the ones shipped with kickstarter campaign) have "emonpi-28May2015"
-if [[ -z $image_version ]] || [[ "$image_date" == "emonSD-17Jun2015" ]]
-then
-  image="old"
-  echo "$image image"
+if [ -f "/.dockerenv" ]; then
+    image_version="container"
 else
-  image="new"
-  echo "$image image"
+    image_version=$(ls /boot | grep emonSD)
+    # Check first 16 characters of filename
+    image_date=${image_version:0:16}
+    if [[ "${image_version:0:6}" == "emonSD" ]]
+    then
+        echo "Image version: $image_version"
+    fi
+
+    # Very old images (the ones shipped with kickstarter campaign) have "emonpi-28May2015"
+    if [[ -z $image_version ]] || [[ "$image_date" == "emonSD-17Jun2015" ]]
+    then
+        image="old"
+        echo "$image image"
+    else
+        image="new"
+        echo "$image image"
+    fi
 fi
 #-----------------------------------------------------------------------------------------------
 
 
 # Get latest backup filename
 if [ ! -d "${backup_source_path}" ]; then
-	echo "Error: ${backup_source_path} does not exist, nothing to import"
-	exit 1
+    echo "Error: ${backup_source_path} does not exist, nothing to import"
+    exit 1
 fi
 
 backup_filename=$(ls -t "${backup_source_path}"/*.tar.gz | head -1)
