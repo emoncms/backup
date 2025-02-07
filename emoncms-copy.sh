@@ -31,23 +31,27 @@ backup_location="/home/pi/usbdisk/backup"
 
 
 #-----------------------------------------------------------------------------------------------
-# Check emonPi / emonBase image version
+# Check container / emonPi / emonBase image version
 #-----------------------------------------------------------------------------------------------
-image_version=$(ls /boot | grep emonSD)
-# Check first 16 characters of filename
-image_date=${image_version:0:16}
-
-if [[ "${image_version:0:6}" == "emonSD" ]]
-then
-    echo "Image version: $image_version"
-fi
-
-# Detect if SD card image verion, used to restore the correct emonhub.conf
-if [[ "$image_date" == "emonSD-17Jun2015" ]]
-then
-  image="old"
+if [ -f "/.dockerenv" ]; then
+    echo "running in container"
 else
-  image="new"
+    image_version=$(ls /boot | grep emonSD)
+    # Check first 16 characters of filename
+    image_date=${image_version:0:16}
+
+    if [[ "${image_version:0:6}" == "emonSD" ]]
+    then
+        echo "Image version: $image_version"
+    fi
+
+    # Detect if SD card image verion, used to restore the correct emonhub.conf
+    if [[ "$image_date" == "emonSD-17Jun2015" ]]
+    then
+        image="old"
+    else
+        image="new"
+    fi
 fi
 
 #-----------------------------------------------------------------------------------------------

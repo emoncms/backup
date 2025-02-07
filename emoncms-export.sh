@@ -75,27 +75,31 @@ do
 done
 
 #-----------------------------------------------------------------------------------------------
-# Check emonPi / emonBase image version
+# Check container / emonPi / emonBase image version
 #-----------------------------------------------------------------------------------------------
-image_version=$(cd /boot && echo *emonSD* )
-# Check first 16 characters of filename
-image_date=${image_version:0:16}
-
-if [[ "${image_version:0:6}" == "emonSD" ]]
-then
-    echo "Image version: $image_version"
-fi
-
-# Very old images (the ones shipped with kickstarter campaign) have "emonpi-28May2015"
-if [[ -z $image_version ]] || [[ "$image_date" == "emonSD-17Jun2015" ]]
-then
-  image="old"
+if [ -f "/.dockerenv" ]; then
+    echo "running in container"
 else
-  image="new"
+    image_version=$(cd /boot && echo *emonSD* )
+    # Check first 16 characters of filename
+    image_date=${image_version:0:16}
+
+    if [[ "${image_version:0:6}" == "emonSD" ]]
+    then
+        echo "Image version: $image_version"
+    fi
+
+    # Very old images (the ones shipped with kickstarter campaign) have "emonpi-28May2015"
+    if [[ -z $image_version ]] || [[ "$image_date" == "emonSD-17Jun2015" ]]
+    then
+        image="old"
+    else
+        image="new"
+    fi
 fi
 #-----------------------------------------------------------------------------------------------
 
-# Disabled in @borphin commit?
+# Disabled in @borpin commit?
 if [ ! -f "/.dockerenv" ]; then
     sudo systemctl stop feedwriter
 fi

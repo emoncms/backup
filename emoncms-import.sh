@@ -32,10 +32,10 @@ if [ ! -f "/.dockerenv" ]; then
 fi
 
 #-----------------------------------------------------------------------------------------------
-# Check emonPi / emonBase image version
+# Check container / emonPi / emonBase image version
 #-----------------------------------------------------------------------------------------------
 if [ -f "/.dockerenv" ]; then
-    image_version="container"
+    echo "running in container"
 else
     image_version=$(ls /boot | grep emonSD)
     # Check first 16 characters of filename
