@@ -51,8 +51,9 @@ else
 fi
 
 #-----------------------------------------------------------------------------------------------
-
-sudo systemctl stop feedwriter
+if [ ! -f "/.dockerenv" ]; then
+    sudo systemctl stop feedwriter
+fi
 
 # Get MYSQL authentication details from settings.php
 if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
@@ -85,7 +86,9 @@ cp /home/pi/data/node-red/settings.js $backup_location
 cp --verbose -r /home/pi/data/phpfina/. $backup_location/phpfina
 cp --verbose -r /home/pi/data/phptimeseries/. $backup_location/phptimeseries
 
-sudo systemctl start feedwriter > /dev/null
+if [ ! -f "/.dockerenv" ]; then
+    sudo systemctl start feedwriter > /dev/null
+fi
 
 date
 echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
