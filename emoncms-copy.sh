@@ -31,28 +31,33 @@ backup_location="/home/pi/usbdisk/backup"
 
 
 #-----------------------------------------------------------------------------------------------
-# Check emonPi / emonBase image version
+# Check container / emonPi / emonBase image version
 #-----------------------------------------------------------------------------------------------
-image_version=$(ls /boot | grep emonSD)
-# Check first 16 characters of filename
-image_date=${image_version:0:16}
-
-if [[ "${image_version:0:6}" == "emonSD" ]]
-then
-    echo "Image version: $image_version"
-fi
-
-# Detect if SD card image verion, used to restore the correct emonhub.conf
-if [[ "$image_date" == "emonSD-17Jun2015" ]]
-then
-  image="old"
+if [ -f "/.dockerenv" ]; then
+    echo "running in container"
 else
-  image="new"
+    image_version=$(ls /boot | grep emonSD)
+    # Check first 16 characters of filename
+    image_date=${image_version:0:16}
+
+    if [[ "${image_version:0:6}" == "emonSD" ]]
+    then
+        echo "Image version: $image_version"
+    fi
+
+    # Detect if SD card image verion, used to restore the correct emonhub.conf
+    if [[ "$image_date" == "emonSD-17Jun2015" ]]
+    then
+        image="old"
+    else
+        image="new"
+    fi
 fi
 
 #-----------------------------------------------------------------------------------------------
-
-sudo systemctl stop feedwriter
+if [ ! -f "/.dockerenv" ]; then
+    sudo systemctl stop feedwriter
+fi
 
 # Get MYSQL authentication details from settings.php
 if [ -f /home/pi/backup/get_emoncms_mysql_auth.php ]; then
@@ -85,7 +90,9 @@ cp /home/pi/data/node-red/settings.js $backup_location
 cp --verbose -r /home/pi/data/phpfina/. $backup_location/phpfina
 cp --verbose -r /home/pi/data/phptimeseries/. $backup_location/phptimeseries
 
-sudo systemctl start feedwriter > /dev/null
+if [ ! -f "/.dockerenv" ]; then
+    sudo systemctl start feedwriter > /dev/null
+fi
 
 date
 echo "=== Emoncms export complete! ===" # This string is identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here

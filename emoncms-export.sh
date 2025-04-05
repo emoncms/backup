@@ -66,33 +66,43 @@ for file in "${backup_location}/emoncms.sql" "${tar_filename}"
 do
     if [ -f "${file}" ]
     then
-        sudo rm "${file}"
+        if [ -f "/.dockerenv" ]; then
+            rm "${file}"
+        else
+            sudo rm "${file}"
+        fi
     fi
 done
 
 #-----------------------------------------------------------------------------------------------
-# Check emonPi / emonBase image version
+# Check container / emonPi / emonBase image version
 #-----------------------------------------------------------------------------------------------
-image_version=$(cd /boot && echo *emonSD* )
-# Check first 16 characters of filename
-image_date=${image_version:0:16}
-
-if [[ "${image_version:0:6}" == "emonSD" ]]
-then
-    echo "Image version: $image_version"
-fi
-
-# Very old images (the ones shipped with kickstarter campaign) have "emonpi-28May2015"
-if [[ -z $image_version ]] || [[ "$image_date" == "emonSD-17Jun2015" ]]
-then
-  image="old"
+if [ -f "/.dockerenv" ]; then
+    echo "running in container"
 else
-  image="new"
+    image_version=$(cd /boot && echo *emonSD* )
+    # Check first 16 characters of filename
+    image_date=${image_version:0:16}
+
+    if [[ "${image_version:0:6}" == "emonSD" ]]
+    then
+        echo "Image version: $image_version"
+    fi
+
+    # Very old images (the ones shipped with kickstarter campaign) have "emonpi-28May2015"
+    if [[ -z $image_version ]] || [[ "$image_date" == "emonSD-17Jun2015" ]]
+    then
+        image="old"
+    else
+        image="new"
+    fi
 fi
 #-----------------------------------------------------------------------------------------------
 
-# Disabled in @borphin commit?
-sudo systemctl stop feedwriter
+# Disabled in @borpin commit?
+if [ ! -f "/.dockerenv" ]; then
+    sudo systemctl stop feedwriter
+fi
 
 # Get MYSQL authentication details from settings.php
 if [ -f "${script_location}/get_emoncms_mysql_auth.php" ]; then
@@ -101,7 +111,9 @@ if [ -f "${script_location}/get_emoncms_mysql_auth.php" ]; then
 else
     echo "Error: cannot read MYSQL authentication details from Emoncms $script_location/get_emoncms_mysql_auth.php php & settings.php"
     echo "$PWD"
-    sudo systemctl start feedwriter > /dev/null
+    if [ ! -f "/.dockerenv" ]; then
+        sudo systemctl start feedwriter > /dev/null
+    fi
     exit 1
 fi
 
@@ -111,12 +123,16 @@ if [ -n "$username" ]; then # if username string is not empty
     if [ $? -ne 0 ]; then
         echo "Error: failed to export mysql data"
         echo "emoncms export failed"
-        sudo systemctl start feedwriter > /dev/null
+        if [ ! -f "/.dockerenv" ]; then
+            sudo systemctl start feedwriter > /dev/null
+        fi
         exit 1
     fi
 else
     echo "Error: Cannot read MYSQL authentication details from Emoncms settings.php"
-    sudo systemctl start feedwriter > /dev/null
+    if [ ! -f "/.dockerenv" ]; then
+        sudo systemctl start feedwriter > /dev/null
+    fi
     exit 1
 fi
 
@@ -151,7 +167,9 @@ do
     fi
 done
 
-sudo systemctl start feedwriter > /dev/null
+if [ ! -f "/.dockerenv" ]; then
+    sudo systemctl start feedwriter > /dev/null
+fi
 
 # Compress backup
 echo "Compressing archive..."
