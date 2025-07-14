@@ -24,7 +24,7 @@
     "Input processes": "Sources de données et processus de traitement associés",
     "Feed data": "Flux de données",
     "Dashboards": "Tableaux de bord",
-    "The compressed archive can be used to migrate data to another emonPi / emonBase.": "Cette archive compressée peut servir pour migrer les données vers un autre emonPi \/ emonBase.",
+    "The compressed archive can be used to migrate data to another emonPi \/ emonBase.": "Cette archive compressée peut servir pour migrer les données vers un autre emonPi \/ emonBase.",
     "Right Click > Download:": "Clic droit > Télécharger :",
     "Once export is complete refresh page to see download link.": "Après tout export terminé avec succès, actualisez la page pour voir le lien de téléchargement.",
     "Note: Export can take a long time; please be patient.": "Remarque : un export peut prendre du temps, veuillez patienter.",
