@@ -36,16 +36,8 @@ function backup_controller()
         return "<br><div class='alert alert-error'><b>".tr("Error:")."</b> ".tr("missing backup config.cfg")."</div>";
     }
     
-    $export_flag = "/tmp/emoncms-flag-export";
-    $export_script = $parsed_ini['backup_script_location']."/emoncms-export.sh";
     $export_logfile = $settings['log']['location']."/exportbackup.log";
-
-    $import_flag = "/tmp/emoncms-flag-import";
-    $import_script = $parsed_ini['backup_script_location']."/emoncms-import.sh";
     $import_logfile = $settings['log']['location']."/importbackup.log";
-
-    $usb_import_flag = "/tmp/emoncms-flag-usb-import";
-    $usb_import_script = $parsed_ini['backup_script_location']."/usb-import.sh";
     $usb_import_logfile = $settings['log']['location']."/usbimport.log";
 
     if ($route->format == 'html' && $route->action == "") {
@@ -54,7 +46,7 @@ function backup_controller()
 
     if ($route->action == 'start') {
         $route->format = "text";
-        $redis->rpush("service-runner","$export_script $export_flag>$export_logfile");
+        $redis->rpush("service-runner", json_encode(["run" => "backup-export", "args" => [], "log" => "exportbackup"]));
     }
 
     if ($route->action == 'exportlog') {
@@ -119,7 +111,7 @@ function backup_controller()
 
         if ((move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) && ($uploadOk == 1)) {
 
-            $redis->rpush("service-runner","$import_script $import_flag>$import_logfile");
+            $redis->rpush("service-runner", json_encode(["run" => "backup-import", "args" => [], "log" => "importbackup"]));
             header('Location: '.$path.'backup#import-archive');
         } else {
             return "<br><div class='alert alert-error'><b>".tr("Error:")."</b> ".tr("Import archive not selected")."</div>";
@@ -129,7 +121,7 @@ function backup_controller()
     if ($route->action == "usbimport") {
         $route->format = "text";
         $result = tr("Starting USB import");
-        $redis->rpush("service-runner","$usb_import_script $usb_import_flag>$usb_import_logfile");
+        $redis->rpush("service-runner", json_encode(["run" => "backup-usb-import", "args" => [], "log" => "usbimport"]));
     }
 
     return array('content'=>$result);
