@@ -150,7 +150,7 @@ usb_import_updater = setInterval(usb_import_log_update,1000);
 
 $("#emonpi-backup").click(function() {
   $.ajax({ url: path+"backup/start", async: true, dataType: "text", success: function(result) {
-      $("#export-log").html(result);
+      $("#export-log").text(result);
       clearInterval(export_updater);
       export_updater = setInterval(export_log_update,1000);
     }
@@ -159,7 +159,7 @@ $("#emonpi-backup").click(function() {
 
 $("#usb-import").click(function() {
   $.ajax({ url: path+"backup/usbimport", async: true, dataType: "text", success: function(result) {
-      $("#usb-import-log").html(result);
+      $("#usb-import-log").text(result);
       clearInterval(usb_import_updater);
       usb_import_updater = setInterval(usb_import_log_update,1000);
     }
@@ -169,7 +169,7 @@ $("#usb-import").click(function() {
 function export_log_update() {
   $.ajax({ url: path+"backup/exportlog", async: true, dataType: "text", success: function(result)
     {
-      $("#export-log").html(result);
+      $("#export-log").text(result);
       document.getElementById("export-log-bound").scrollTop = document.getElementById("export-log-bound").scrollHeight
 
       if (result.indexOf("=== Emoncms export complete! ===")!=-1 || result.indexOf("=== Emoncms export completed with ERRORS! ===")!=-1) {
@@ -183,7 +183,7 @@ function import_log_update() {
   $.ajax({ url: path+"backup/importlog", async: true, dataType: "text", success: function(result)
     {
       if (result=="backup module requires admin access") location.replace("/");
-      $("#import-log").html(result);
+      $("#import-log").text(result);
       document.getElementById("import-log-bound").scrollTop = document.getElementById("import-log-bound").scrollHeight
 
       if (result.indexOf("=== Emoncms import complete! ===")!=-1) {
@@ -197,7 +197,7 @@ function usb_import_log_update() {
   $.ajax({ url: path+"backup/usbimportlog", async: true, dataType: "text", success: function(result)
     {
       if (result=="backup module requires admin access") location.replace("/");
-      $("#usb-import-log").html(result);
+      $("#usb-import-log").text(result);
       document.getElementById("usb-import-log-bound").scrollTop = document.getElementById("usb-import-log-bound").scrollHeight
 
       if (result.indexOf("=== Emoncms import complete! ===")!=-1) {

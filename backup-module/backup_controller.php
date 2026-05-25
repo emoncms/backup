@@ -17,7 +17,7 @@ function backup_controller()
     global $route, $session, $path, $redis, $linked_modules_dir, $settings;
     $result = false;
     // This module is only to be ran by the admin user
-    if (!$session['write'] && !$session['admin']) {
+    if (!isset($session['admin']) || !$session['admin']) {
         $route->format = "html";
         return "<br><div class='alert alert-error'><b>".tr("Error:")."</b> ".tr("backup module requires admin access")."</div>";
     }
@@ -52,9 +52,7 @@ function backup_controller()
     if ($route->action == 'exportlog') {
         $route->format = "text";
         if (file_exists($export_logfile)) {
-            ob_start();
-            passthru("cat $export_logfile");
-            $result = trim(ob_get_clean());
+            $result = trim(file_get_contents($export_logfile));
         } else {
             $result = "";
         }
@@ -63,9 +61,7 @@ function backup_controller()
     if ($route->action == 'importlog') {
         $route->format = "text";
         if (file_exists($import_logfile)) {
-            ob_start();
-            passthru("cat $import_logfile");
-            $result = trim(ob_get_clean());
+            $result = trim(file_get_contents($import_logfile));
         } else {
             $result = "";
         }
@@ -74,9 +70,7 @@ function backup_controller()
     if ($route->action == 'usbimportlog') {
         $route->format = "text";
         if (file_exists($usb_import_logfile)) {
-            ob_start();
-            passthru("cat $usb_import_logfile");
-            $result = trim(ob_get_clean());
+            $result = trim(file_get_contents($usb_import_logfile));
         } else {
             $result = "";
         }
@@ -84,8 +78,8 @@ function backup_controller()
     
     if ($route->action == "download") {
         header("Content-type: application/zip");
-        $backup_filename="emoncms-backup-".gethostname()."-".date("Y-m-d").".tar.gz";
-        header("Content-Disposition: attachment; filename=$backup_filename");
+        $backup_filename="emoncms-backup-".preg_replace('/[^a-zA-Z0-9\-]/', '-', gethostname())."-".date("Y-m-d").".tar.gz";
+        header("Content-Disposition: attachment; filename=\"$backup_filename\"");
         header("Pragma: no-cache");
         header("Expires: 0");
         readfile($parsed_ini['backup_location']."/".$backup_filename);
