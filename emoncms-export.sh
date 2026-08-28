@@ -136,8 +136,15 @@ else
     exit 1
 fi
 
-# 
-for file in "${backup_location}/emoncms.sql" "${emonhub_config_path}/emonhub.conf" "${emoncms_location}/settings.ini" "${emoncms_location}/settings.php"
+# Build list of files to backup, newer systems use settings.ini rather than
+# settings.php, only look for settings.php if there is no settings.ini
+declare -a backup_files
+backup_files=("${backup_location}/emoncms.sql" "${emonhub_config_path}/emonhub.conf" "${emoncms_location}/settings.ini")
+if [ ! -f "${emoncms_location}/settings.ini" ]; then
+    backup_files+=("${emoncms_location}/settings.php")
+fi
+
+for file in "${backup_files[@]}"
 do
     if [ -f "${file}" ]
     then
