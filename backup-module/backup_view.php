@@ -82,9 +82,15 @@
         <pre id="export-log-bound" class="log"><div id="export-log"></div></pre>
         <?php
         $backup_filename="emoncms-backup-".gethostname()."-".date("Y-m-d").".tar.gz";
-        if (file_exists($parsed_ini['backup_location']."/".$backup_filename) && !file_exists("/tmp/backuplock")) {
+        $backup_filepath=$parsed_ini['backup_location']."/".$backup_filename;
+        if (file_exists($backup_filepath) && !file_exists("/tmp/backuplock")) {
+            $size = filesize($backup_filepath);
             echo '<br><br><b>'.tr("Right Click > Download:");
             echo '</b><br><a href="'.$path.'backup/download">'.$backup_filename.'</a>';
+            if ($size !== false) {
+                // TODO: This isn't RTL friendly, need to parameterise number in message
+                echo " (" . ( $size/1024/1024 ) . tr(" MB") . ")";
+            }
         }
         ?>
         <br><br>
