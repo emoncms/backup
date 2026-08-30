@@ -12,6 +12,39 @@
     // no direct access
     defined('EMONCMS_EXEC') or die('Restricted access');
 
+// Ask drive-backup.sh which mounted drives could hold a backup.
+//
+// Discovery is read only and needs no privileges, so it can run as the web user.
+// Keeping it in the script rather than reimplementing it here means the list the
+// interface offers and the list --set-path accepts can never disagree.
+function backup_discover_drives($parsed_ini)
+{
+    $script = "";
+    if (isset($parsed_ini['backup_script_location'])) {
+        $script = $parsed_ini['backup_script_location']."/drive-backup.sh";
+    }
+    if (!is_file($script)) $script = "/opt/emoncms/modules/backup/drive-backup.sh";
+    if (!is_file($script)) return array();
+
+    $lines = array();
+    @exec(escapeshellarg($script)." --discover 2>/dev/null", $lines);
+
+    $drives = array();
+    foreach ($lines as $line) {
+        $f = explode("\t", $line);
+        if (count($f) < 6) continue;
+        $drives[] = array(
+            "mountpoint"  => $f[0],
+            "source"      => $f[1],
+            "fstype"      => $f[2],
+            "kind"        => $f[3],
+            "free_mb"     => (int) $f[4],
+            "initialised" => ($f[5] === "yes")
+        );
+    }
+    return $drives;
+}
+
 function backup_controller()
 {
     global $route, $session, $path, $redis, $linked_modules_dir, $settings;
@@ -39,6 +72,9 @@ function backup_controller()
     $export_logfile = $settings['log']['location']."/exportbackup.log";
     $import_logfile = $settings['log']['location']."/importbackup.log";
     $usb_import_logfile = $settings['log']['location']."/usbimport.log";
+    $drive_backup_logfile = $settings['log']['location']."/drivebackup.log";
+    $drive_backup_verify_logfile = $settings['log']['location']."/drivebackup-verify.log";
+    $drive_restore_logfile = $settings['log']['location']."/driverestore.log";
 
     if ($route->format == 'html' && $route->action == "") {
         $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini));
@@ -116,6 +152,163 @@ function backup_controller()
         $route->format = "text";
         $result = tr("Starting USB import");
         $redis->rpush("service-runner", json_encode(["run" => "backup-usb-import", "args" => [], "log" => "usbimport"]));
+    }
+
+    // ------------------------------------------------------------------
+    // Write efficient backup to an attached drive (drive-backup.sh)
+    // ------------------------------------------------------------------
+
+    if ($route->action == "drivebackup") {
+        $route->format = "text";
+        $result = tr("Starting drive backup");
+        $redis->rpush("service-runner", json_encode(["run" => "backup-drive-sync", "args" => [], "log" => "drivebackup"]));
+    }
+
+    if ($route->action == "drivebackupverify") {
+        $route->format = "text";
+        $result = tr("Starting backup drive verify");
+        $redis->rpush("service-runner", json_encode(["run" => "backup-drive-verify", "args" => ["--verify"], "log" => "drivebackupverify"]));
+    }
+
+    if ($route->action == 'drivebackuplog') {
+        $route->format = "text";
+        if (file_exists($drive_backup_logfile)) {
+            $result = trim(file_get_contents($drive_backup_logfile));
+        } else {
+            $result = "";
+        }
+    }
+
+    if ($route->action == 'drivebackupverifylog') {
+        $route->format = "text";
+        if (file_exists($drive_backup_verify_logfile)) {
+            $result = trim(file_get_contents($drive_backup_verify_logfile));
+        } else {
+            $result = "";
+        }
+    }
+
+    // Drives that could hold a backup. drive-backup.sh --discover is the single
+    // authority on this list: it is read only and needs no privileges, and the
+    // same function decides what --set-path will accept, so the interface can
+    // never offer a destination the script would then refuse.
+    if ($route->action == 'drivediscover') {
+        $route->format = "json";
+        $result = backup_discover_drives($parsed_ini);
+    }
+
+    // Select one of those drives as the backup destination. The value is checked
+    // here and then checked again by drive-backup.sh against its own discovery,
+    // which is what stops this being a way to point a root process anywhere.
+    if ($route->action == 'drivesetpath') {
+        $route->format = "text";
+
+        $mountpoint = isset($_GET['mountpoint']) ? $_GET['mountpoint'] : "";
+        $found = false;
+        foreach (backup_discover_drives($parsed_ini) as $drive) {
+            if ($drive['mountpoint'] === $mountpoint) $found = true;
+        }
+        if (!$found) {
+            return array('content' => tr("That drive is not available for backup"));
+        }
+
+        $result = tr("Preparing backup drive");
+        $redis->rpush("service-runner", json_encode(["run" => "backup-drive-setpath", "args" => ["--set-path", $mountpoint], "log" => "drivebackup"]));
+    }
+
+    if ($route->action == 'driverestorelog') {
+        $route->format = "text";
+        if (file_exists($drive_restore_logfile)) {
+            $result = trim(file_get_contents($drive_restore_logfile));
+        } else {
+            $result = "";
+        }
+    }
+
+    // Restore overwrites the live database and feed data. The snapshot name
+    // arrives from the browser, so it is only accepted if it is a bare filename
+    // that is actually one of the snapshots present on the backup drive.
+    if ($route->action == "driverestore") {
+        $route->format = "text";
+
+        $drive_backup_path = isset($parsed_ini['drive_backup_path']) ? $parsed_ini['drive_backup_path'] : "";
+        if ($drive_backup_path == "" || !file_exists("$drive_backup_path/.emoncms-backup-target")) {
+            return array('content' => tr("Backup drive not available"));
+        }
+
+        $args = array("--yes");
+        if (isset($_GET['delete']) && $_GET['delete'] == "1") {
+            $args[] = "--delete";
+        }
+
+        $sql = isset($_GET['sql']) ? $_GET['sql'] : "";
+
+        if ($sql != "") {
+            if ($sql !== basename($sql)) {
+                return array('content' => tr("Invalid snapshot name"));
+            }
+            $found = false;
+            foreach (array("daily","weekly") as $period) {
+                if (file_exists("$drive_backup_path/sql/$period/$sql")) $found = true;
+            }
+            if (!$found) {
+                return array('content' => tr("Snapshot not found on the backup drive"));
+            }
+            $args[] = "--sql";
+            $args[] = $sql;
+        }
+
+        $result = tr("Starting drive restore");
+        $redis->rpush("service-runner", json_encode(["run" => "backup-drive-restore", "args" => $args, "log" => "driverestore"]));
+    }
+
+    // Result of the last run, read from status.json on the backup drive itself,
+    // so an unplugged drive is reported as unavailable rather than showing stale
+    // figures from a previous run
+    if ($route->action == 'drivebackupstatus') {
+        $route->format = "json";
+
+        $drive_backup_path = isset($parsed_ini['drive_backup_path']) ? $parsed_ini['drive_backup_path'] : "";
+        $status = array(
+            "configured" => ($drive_backup_path != ""),
+            "path" => $drive_backup_path,
+            "available" => false,
+            "status" => false,
+            "free_mb" => 0,
+            "total_mb" => 0,
+            "sql" => array()
+        );
+
+        // The marker file is what drive-backup.sh itself checks for, so this
+        // reports availability on exactly the same basis as the script
+        if ($status['configured'] && file_exists("$drive_backup_path/.emoncms-backup-target")) {
+            $status['available'] = true;
+
+            $free = @disk_free_space($drive_backup_path);
+            $total = @disk_total_space($drive_backup_path);
+            if ($free !== false) $status['free_mb'] = round($free / 1048576);
+            if ($total !== false) $status['total_mb'] = round($total / 1048576);
+
+            if (file_exists("$drive_backup_path/status.json")) {
+                $decoded = json_decode(file_get_contents("$drive_backup_path/status.json"), true);
+                if ($decoded !== null) $status['status'] = $decoded;
+            }
+
+            foreach (array("daily","weekly") as $period) {
+                $files = @glob("$drive_backup_path/sql/$period/*.sql.gz");
+                if ($files === false) $files = array();
+                rsort($files);
+                foreach ($files as $file) {
+                    $status['sql'][] = array(
+                        "period" => $period,
+                        "name" => basename($file),
+                        "size_mb" => round(filesize($file) / 1048576, 1)
+                    );
+                }
+            }
+        }
+
+        $result = $status;
     }
 
     return array('content'=>$result);
