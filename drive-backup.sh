@@ -184,15 +184,30 @@ rsync_ownership_opts() {
 discover_destinations() {
     local target source fstype options kind free marker dev base removable
 
-    findmnt -rno TARGET,SOURCE,FSTYPE,OPTIONS | while read -r target source fstype options; do
+    local seen=""
+
+    # Process substitution rather than a pipe, so the loop runs in this shell and
+    # can remember which mountpoints it has already reported
+    while read -r target source fstype options; do
         case "${fstype}" in
             ext2|ext3|ext4|xfs|btrfs|f2fs|vfat|exfat|msdos|ntfs|ntfs3|fuseblk|nfs|nfs4|cifs|smb3|smbfs) ;;
             *) continue ;;
         esac
         # Never offer the system's own filesystems as a backup destination
         case "${target}" in
-            /|/boot|/boot/*|/usr|/usr/*|/var|/var/*|/etc|/etc/*|/home|/run|/run/*|/snap/*|/proc/*|/sys/*) continue ;;
+            /|/boot|/boot/*|/usr|/usr/*|/var|/var/*|/etc|/etc/*|/home|/root|/root/*) continue ;;
+            /run|/run/*|/snap/*|/proc/*|/sys/*|/dev|/dev/*|/tmp|/tmp/*) continue ;;
         esac
+        # systemd gives services private /tmp and inaccessible directory mounts,
+        # which show up here as duplicates of real mountpoints
+        case "${source}" in
+            *systemd-private*|*systemd/inaccessible*) continue ;;
+        esac
+        # The same mountpoint can appear more than once, from a bind mount say.
+        # Report it once: a repeated entry would be a duplicate row, and a
+        # duplicate key, in the interface.
+        case " ${seen} " in *" ${target} "*) continue ;; esac
+        seen="${seen} ${target}"
 
         kind="fixed"
         case "${source}" in
@@ -222,7 +237,7 @@ discover_destinations() {
         printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
             "${target}" "${source}" "${fstype}" "${kind}" "${free:-0}" "${marker}" \
             "${compressed}" "${snapshots}"
-    done
+    done < <(findmnt -rno TARGET,SOURCE,FSTYPE,OPTIONS)
 }
 
 # rsync --dry-run does not report Literal data, so for a dry run work the append
