@@ -38,15 +38,15 @@
     $T = array(
         "checking"        => tr("Checking"),
         "not_set_up"      => tr("No automatic backup set up"),
-        "not_set_up_d"    => tr("Your data is not being copied anywhere. Choose a drive below to start."),
+        "not_set_up_d"    => tr("Your data is not being copied anywhere. Choose a drive below."),
         "not_connected"   => tr("Backup drive not connected"),
         "nothing_at"      => tr("Nothing is mounted at"),
         "resumes"         => tr("Backups resume when it is reconnected."),
         "ready_no_backup" => tr("Drive ready, no backup taken yet"),
-        "run_first"       => tr("Run the first backup now, or wait for the daily one."),
+        "run_first"       => tr("Run the first backup now, or wait for the daily run."),
         "last_failed"     => tr("The last backup failed"),
         "finished"        => tr("Finished"),
-        "see_log"         => tr("See the log below for what went wrong."),
+        "see_log"         => tr("See the log below."),
         "out_of_date"     => tr("Backup is out of date"),
         "falling_behind"  => tr("Backup is falling behind"),
         "backed_up"       => tr("Your data is backed up"),
@@ -224,7 +224,7 @@
     <?php if (!$servicerunner_running) { ?>
     <div class="bk-warning">
         <b><?php echo tr("service-runner is not running"); ?></b> &mdash;
-        <?php echo tr("nothing on this page can start until it is."); ?>
+        <?php echo tr("nothing on this page can run until it is."); ?>
         <a href="https://github.com/emoncms/emoncms/blob/master/scripts/services/install-service-runner-update.md"><?php echo tr("Installation instructions"); ?></a>
     </div>
     <?php } ?>
@@ -255,7 +255,7 @@
                 <?php echo tr("Reconnect it, or choose a different drive."); ?>
             </p>
             <p class="muted" v-else>
-                <?php echo tr("Emoncms keeps a mirror of your data on an attached drive. Mount a USB disk or a network share, then choose it here."); ?>
+                <?php echo tr("Emoncms keeps a copy of your data on an attached drive. Mount a USB drive or network share, then choose it below."); ?>
             </p>
 
             <table class="bk-table" v-if="drives.length">
@@ -284,7 +284,7 @@
                     </tr>
                 </tbody>
             </table>
-            <p class="muted" v-else><?php echo tr("No suitable drives found. Mount a USB disk or network share first, adding it to /etc/fstab so it is mounted again after a reboot."); ?></p>
+            <p class="muted" v-else><?php echo tr("No drives found. Mount a USB drive or network share first. Add it to /etc/fstab so it is mounted again after a reboot."); ?></p>
         </div>
 
         <!-- The destination in use, and what it can do -->
@@ -306,26 +306,26 @@
                 </div>
             </div>
 
-            <h4 style="margin-top:18px"><?php echo tr("What this drive gives you"); ?></h4>
+            <h4 style="margin-top:18px"><?php echo tr("What this drive can do"); ?></h4>
             <div class="bk-caps">
                 <div class="bk-cap yes">
                     <span class="mark">&check;</span>
-                    <span><b><?php echo tr("Incremental"); ?></b> &mdash;
-                    <?php echo tr("only new readings are written each day, typically a few MB rather than the whole dataset."); ?></span>
+                    <span><b><?php echo tr("Only new data is copied"); ?></b> &mdash;
+                    <?php echo tr("just the new readings each day, usually a few MB rather than all of your data."); ?></span>
                 </div>
                 <div class="bk-cap" :class="caps.compressed ? 'yes' : 'no'">
                     <span class="mark" v-if="caps.compressed">&check;</span><span class="mark" v-else>&ndash;</span>
                     <span v-if="caps.compressed"><b><?php echo tr("Compressed"); ?></b> &mdash;
-                        <?php echo tr("the filesystem compresses transparently, feed data typically shrinks about fourfold."); ?></span>
+                        <?php echo tr("the drive compresses as it writes. Feed data is typically about 80% smaller."); ?></span>
                     <span v-else><b><?php echo tr("Not compressed"); ?></b> &mdash;
-                        <?php echo tr("compressing the mirror itself would mean rewriting every file on every run, which is what makes the daily backup cheap. A btrfs drive mounted with compress=zstd gives compression for free."); ?></span>
+                        <?php echo tr("feed files are copied as they are. Compressing them here would mean rewriting each one in full every day, which is exactly what this backup avoids. A btrfs drive mounted with compress=zstd compresses them as it writes instead."); ?></span>
                 </div>
                 <div class="bk-cap" :class="caps.snapshots ? 'yes' : 'no'">
                     <span class="mark" v-if="caps.snapshots">&check;</span><span class="mark" v-else>&ndash;</span>
-                    <span v-if="caps.snapshots"><b><?php echo tr("Restore points for everything"); ?></b> &mdash;
-                        <?php echo tr("this filesystem can snapshot the whole mirror cheaply."); ?></span>
-                    <span v-else><b><?php echo tr("Restore points for the database only"); ?></b> &mdash;
-                        <?php echo tr("feed data is mirrored to its latest state, so damage noticed late cannot be rolled back. A copy on write filesystem such as btrfs would add this."); ?></span>
+                    <span v-if="caps.snapshots"><b><?php echo tr("Dated copies of everything"); ?></b> &mdash;
+                        <?php echo tr("this drive can keep dated copies of the feed data as well as the database."); ?></span>
+                    <span v-else><b><?php echo tr("Dated copies of the database only"); ?></b> &mdash;
+                        <?php echo tr("feed data is kept at its latest state, so a problem that goes unnoticed for a while cannot be undone. A btrfs drive would add this."); ?></span>
                 </div>
             </div>
 
@@ -369,21 +369,21 @@
         <!-- Run now -->
         <div class="bk-card" v-if="status.available">
             <h3><?php echo tr("Run now"); ?></h3>
-            <p class="muted"><?php echo tr("Backups run on their own each day. These are for when you want one immediately."); ?></p>
+            <p class="muted"><?php echo tr("Backups run each day on their own. Use these to run one now."); ?></p>
             <div class="bk-actions">
                 <button class="bk-btn primary" :disabled="busy" @click="run('drivebackup','drivebackuplog')"><?php echo tr("Back up now"); ?></button>
                 <button class="bk-btn" :disabled="busy" @click="run('drivebackupverify','drivebackupverifylog')"><?php echo tr("Verify and repair"); ?></button>
             </div>
             <details class="bk-disclosure" style="margin-top:12px">
                 <summary><?php echo tr("When should I verify?"); ?></summary>
-                <div><?php echo tr("The daily backup appends new readings to the end of each feed file, which is what makes it cheap. It cannot notice a file that was rewritten in place without changing size. Verify compares every file by checksum and repairs any difference, writing only the blocks that actually differ. It runs weekly on its own; this button is for running it early."); ?></div>
+                <div><?php echo tr("The daily backup only adds new readings to the end of each file, so it cannot spot a file that was changed in place without changing size. Verify checks every file and repairs any difference. It runs weekly on its own, so this is only for running it early."); ?></div>
             </details>
         </div>
 
         <!-- Restore points -->
         <div class="bk-card" v-if="status.available">
             <h3><?php echo tr("Restore points"); ?></h3>
-            <p class="muted"><?php echo tr("Dated copies of the Emoncms database kept on the drive. Feed data is mirrored to its latest state rather than kept per date."); ?></p>
+            <p class="muted"><?php echo tr("Dated copies of the Emoncms database kept on the drive. Feed data is kept at its latest state, not per date."); ?></p>
             <table class="bk-table" v-if="status.sql && status.sql.length">
                 <thead><tr>
                     <th><?php echo tr("Taken"); ?></th>
@@ -404,7 +404,7 @@
         <!-- Portable archive, formerly the Export Archive tab -->
         <div class="bk-card">
             <h3><?php echo tr("Download a portable copy"); ?></h3>
-            <p class="muted"><?php echo tr("Builds a single compressed archive of everything and offers it as a download, for keeping off site or moving to another machine. This rewrites the whole dataset each time, so it is for occasional use rather than a daily backup."); ?></p>
+            <p class="muted"><?php echo tr("A single compressed archive of everything, to keep off site or move to another emonPi / emonBase. It rewrites all of your data each time, so use it now and then rather than daily."); ?></p>
             <div class="bk-actions">
                 <button class="bk-btn" :disabled="busy" @click="run('start','exportlog')"><?php echo tr("Build archive"); ?></button>
                 <?php if ($archive_ready) { ?>
@@ -412,16 +412,16 @@
                 <?php } ?>
             </div>
             <?php if (!$archive_ready) { ?>
-            <p class="muted" style="margin-top:10px"><i><?php echo tr("Once the archive is built, reload this page for the download link."); ?></i></p>
+            <p class="muted" style="margin-top:10px"><i><?php echo tr("Once the archive is built, refresh the page to see the download link."); ?></i></p>
             <?php } ?>
         </div>
 
         <details class="bk-disclosure bk-card">
             <summary><?php echo tr("How the daily backup works"); ?></summary>
             <div>
-                <p><?php echo tr("Emoncms stores feed readings in append only files: each reading is a fixed number of bytes added to the end. From one day to the next the only new data is that tail, so the backup copies just the tail rather than the whole file."); ?></p>
-                <p><?php echo tr("On a system with 83 feeds and 738 MB of data that is about 2 MB written a day, against roughly 1.5 GB for a full archive. That matters for speed, for network bandwidth, and for the working life of a USB flash drive."); ?></p>
-                <p><?php echo tr("The Emoncms database is small, so a fresh compressed copy is saved every run, keeping the last seven days and the last four weeks."); ?></p>
+                <p><?php echo tr("Emoncms adds each new reading to the end of a feed file. From one day to the next the only new data is at the end, so the backup copies just that rather than the whole file."); ?></p>
+                <p><?php echo tr("On a system with 83 feeds and 738 MB of data that is about 2 MB a day, against roughly 1.5 GB for a full archive. It is quicker, it uses far less network bandwidth, and it is much kinder to a USB flash drive."); ?></p>
+                <p><?php echo tr("The Emoncms database is small, so a fresh compressed copy is saved every run. The last seven days and the last four weeks are kept."); ?></p>
             </div>
         </details>
     </div>
@@ -431,7 +431,7 @@
 
         <div class="bk-warning">
             <b><?php echo tr("Restoring replaces all Emoncms data on this system."); ?></b>
-            <?php echo tr("Inputs, feeds, dashboards and readings are all overwritten by whatever is in the copy you restore from."); ?>
+            <?php echo tr("Inputs, feeds, dashboards and feed data are all replaced by the copy you restore from."); ?>
         </div>
 
         <p class="muted"><?php echo tr("Choose where to restore from."); ?></p>
@@ -440,7 +440,7 @@
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap">
                 <div>
                     <h3><?php echo tr("From the backup drive"); ?></h3>
-                    <p class="muted" style="margin:0"><?php echo tr("The mirror kept up to date by the daily backup."); ?></p>
+                    <p class="muted" style="margin:0"><?php echo tr("The copy kept up to date by the daily backup."); ?></p>
                 </div>
                 <span class="bk-badge ok" v-if="status.available"><?php echo tr("Connected"); ?></span>
                 <span class="bk-badge grey" v-else><?php echo tr("Not connected"); ?></span>
@@ -460,20 +460,20 @@
                     </div>
                     <div class="bk-row">
                         <div class="k"><?php echo tr("Feed data"); ?></div>
-                        <div class="v muted"><?php echo tr("restored to the state of the last backup, whichever restore point is chosen"); ?></div>
+                        <div class="v muted"><?php echo tr("restored to the state of the last backup, whichever restore point you choose"); ?></div>
                     </div>
                 </div>
 
                 <label class="bk-check">
                     <input type="checkbox" v-model="restore_delete">
-                    <span><?php echo tr("Also delete feed files that are not in the backup, making this system an exact copy of it"); ?></span>
+                    <span><?php echo tr("Also delete feed files that are not in the backup, so this system matches it exactly"); ?></span>
                 </label>
                 <label class="bk-check">
                     <input type="checkbox" v-model="restore_confirm">
                     <span><b><?php echo tr("I understand this overwrites all Emoncms data on this system"); ?></b></span>
                 </label>
 
-                <p class="muted"><?php echo tr("The current database is saved to the backup folder first, so a restore started by mistake can be undone. Feed data is overwritten in place and is not covered by that."); ?></p>
+                <p class="muted"><?php echo tr("The current database is saved first, so a restore started by mistake can be undone. Feed data is overwritten in place and cannot be recovered this way."); ?></p>
 
                 <div class="bk-actions">
                     <button class="bk-btn danger" :disabled="!restore_confirm || busy" @click="do_restore()"><?php echo tr("Restore from drive"); ?></button>
@@ -486,7 +486,7 @@
         <div class="bk-card">
             <h3><?php echo tr("From an archive file"); ?></h3>
             <p class="muted"><?php echo tr("Upload a"); ?> <span class="mono">.tar.gz</span>
-                <?php echo tr("archive previously downloaded from this or another Emoncms."); ?></p>
+                <?php echo tr("archive downloaded from this or another Emoncms."); ?></p>
             <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
                 <input type="file" name="file" id="file" accept=".gz">
                 <div class="bk-actions" style="margin-top:12px">
@@ -495,7 +495,7 @@
             </form>
             <details class="bk-disclosure" style="margin-top:10px">
                 <summary><?php echo tr("The upload fails for large archives"); ?></summary>
-                <div><?php echo tr("Browsers and PHP both limit upload size. For a large archive, copy it onto the machine and run"); ?>
+                <div><?php echo tr("Browsers and PHP limit the upload size. For a large archive, copy it onto the machine and run"); ?>
                     <span class="mono">./emoncms-import.sh</span>,
                     <a href="http://github.com/emoncms/backup"><?php echo tr("see the module readme"); ?></a>.
                 </div>
@@ -504,8 +504,8 @@
 
         <div class="bk-card">
             <h3><?php echo tr("From an old emonSD card"); ?></h3>
-            <p class="muted"><?php echo tr("Put the old emonPi or emonBase SD card in a USB card reader and plug it in. Everything is read directly from the card, with no need to export an archive first."); ?></p>
-            <p class="muted"><i><?php echo tr("Update Emoncms and EmonHub to the latest version before importing."); ?></i></p>
+            <p class="muted"><?php echo tr("Put the old emonPi or emonBase SD card in a USB card reader and plug it in. The data is read straight from the card, with no need to export an archive first."); ?></p>
+            <p class="muted"><i><?php echo tr("Note: Update Emoncms and EmonHub to the latest version before importing."); ?></i></p>
             <label class="bk-check">
                 <input type="checkbox" v-model="sd_confirm">
                 <span><b><?php echo tr("I understand this overwrites all Emoncms data on this system"); ?></b></span>
@@ -516,7 +516,7 @@
         </div>
 
         <div class="bk-note" v-if="restore_started">
-            <?php echo tr("When the restore has finished, log out and log back in using the account details from the restored data."); ?>
+            <?php echo tr("When the restore is complete, log out then log in using the restored account details."); ?>
         </div>
     </div>
 
