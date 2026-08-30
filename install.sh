@@ -88,5 +88,40 @@ if [ ! -d $backup_location/uploads ]; then
     sudo chown www-data:$user $backup_location/uploads -R
 fi
 
+# drive-backup.sh requires rsync
+if ! command -v rsync > /dev/null; then
+    echo "- installing rsync (required by drive-backup.sh)"
+    sudo apt-get install -y rsync
+fi
+
+# ---------------------------------------------------------------
+# Install the drive-backup.sh systemd timers
+#
+# The timers are only enabled once drive_backup_path has been set in config.cfg,
+# so that a fresh install does not schedule a backup to nowhere. Re-run this
+# script after setting it, or enable them by hand with the commands printed below.
+# ---------------------------------------------------------------
+echo "- installing drive-backup systemd units"
+for unit in emoncms-drive-backup.service emoncms-drive-backup.timer \
+            emoncms-drive-backup-verify.service emoncms-drive-backup-verify.timer; do
+    sed "s~BACKUP_SCRIPT_LOCATION~$backup_module_dir~" "$backup_module_dir/systemd/$unit" \
+        | sudo tee /etc/systemd/system/$unit > /dev/null
+done
+sudo systemctl daemon-reload
+
+if [ -n "$drive_backup_path" ]; then
+    echo "- drive_backup_path is set to $drive_backup_path, enabling timers"
+    sudo systemctl enable --now emoncms-drive-backup.timer
+    sudo systemctl enable --now emoncms-drive-backup-verify.timer
+    sudo systemctl list-timers 'emoncms-drive-backup*' --no-pager
+else
+    echo "- drive_backup_path is not set in config.cfg, timers installed but not enabled"
+    echo "  To enable daily drive backup, mount a USB drive or NAS share, then either"
+    echo "  choose it on the Drive Backup tab of the backup module in Emoncms, or:"
+    echo "    1. $backup_module_dir/drive-backup.sh --discover"
+    echo "    2. $backup_module_dir/drive-backup.sh --set-path <mountpoint>"
+    echo "    3. sudo systemctl enable --now emoncms-drive-backup.timer emoncms-drive-backup-verify.timer"
+fi
+
 echo "- restarting apache"
 sudo service apache2 restart

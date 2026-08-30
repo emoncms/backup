@@ -1,0 +1,24 @@
+[Unit]
+Description=Emoncms backup drive verify and repair
+Documentation=https://github.com/emoncms/backup
+Wants=mysql.service
+After=mysql.service local-fs.target
+
+[Service]
+Type=oneshot
+
+# Compares every file by checksum and rewrites only the blocks that differ.
+# Needed because the daily append run cannot detect a source file that was
+# rewritten in place without changing size.
+ExecStartPre=/bin/mkdir -p /var/log/emoncms
+ExecStart=/bin/bash -c 'set -o pipefail; BACKUP_SCRIPT_LOCATION/drive-backup.sh --verify --if-mounted 2>&1 | tee /var/log/emoncms/drivebackup-verify.log'
+
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=infinity
+
+# View with: sudo journalctl -u emoncms-drive-backup-verify -o cat
+SyslogIdentifier=emoncms-drive-backup-verify
+
+[Install]
+WantedBy=multi-user.target

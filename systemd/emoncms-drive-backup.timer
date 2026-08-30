@@ -1,0 +1,18 @@
+[Unit]
+Description=Daily Emoncms backup to attached drive
+Documentation=https://github.com/emoncms/backup
+
+[Timer]
+OnCalendar=daily
+
+# Spread the load, and avoid every system on a site waking at exactly midnight
+RandomizedDelaySec=1h
+
+# Run a missed backup on the next boot. Without this a system that is powered
+# off overnight would never back up at all.
+Persistent=true
+
+Unit=emoncms-drive-backup.service
+
+[Install]
+WantedBy=timers.target

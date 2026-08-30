@@ -1,0 +1,27 @@
+[Unit]
+Description=Emoncms write efficient backup to attached drive
+Documentation=https://github.com/emoncms/backup
+Wants=mysql.service
+After=mysql.service local-fs.target
+
+[Service]
+Type=oneshot
+
+# Appends only new feed data. --if-mounted makes an absent drive a skipped run
+# rather than a failure, so unplugging the drive does not fill the journal with
+# errors. Output goes to the journal and to the log file the Emoncms interface reads.
+ExecStartPre=/bin/mkdir -p /var/log/emoncms
+ExecStart=/bin/bash -c 'set -o pipefail; BACKUP_SCRIPT_LOCATION/drive-backup.sh --if-mounted 2>&1 | tee /var/log/emoncms/drivebackup.log'
+
+# A backup is background maintenance, it must not make the system unresponsive
+Nice=19
+IOSchedulingClass=idle
+
+# The first run copies the whole dataset and can take a long time on a large system
+TimeoutStartSec=infinity
+
+# View with: sudo journalctl -u emoncms-drive-backup -o cat
+SyslogIdentifier=emoncms-drive-backup
+
+[Install]
+WantedBy=multi-user.target
