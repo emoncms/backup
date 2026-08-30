@@ -156,11 +156,19 @@ Run one immediately without waiting for the timer:
 
 ### Emoncms interface
 
-The backup module's **Drive Backup** tab lists the drives it found, lets you pick
-one as the backup destination, and then shows the state of that drive, the result
-of the last run, how much was written and the database snapshots held, with
-buttons to back up, verify and restore. Restoring requires ticking a
-confirmation box.
+The backup module has two tabs, **Backup** and **Restore**.
+
+Backup opens with a single line saying whether the data is actually protected:
+green only when a recent backup exists *and* the daily timer is running, amber
+when the drive is disconnected, when backups are falling behind, or when nothing
+is scheduled, red when the last run failed or the backup is more than a week old.
+Below that it lists the drives it found so one can be chosen, shows what that
+drive can give you, the result of the last run, the restore points held, and
+buttons to back up, verify, or build a portable archive to download.
+
+Restore gathers all three recovery paths in one place: the backup drive, an
+uploaded `.tar.gz` archive, and an old emonSD card in a USB reader. Each requires
+ticking a confirmation box.
 
 The destination chosen in the interface is written to `drive-backup-path.conf`
 rather than to `config.cfg`, and it takes precedence over `config.cfg`.
@@ -238,6 +246,16 @@ systemd unit forever. Both scripts probe a network destination first and give up
 after `drive_backup_probe_seconds` (default 20). Under the timer this counts as a
 skipped run, exactly like an unplugged USB drive. Mount NFS shares with `soft` as
 well, so that reads during the run fail rather than hang.
+
+**Compression and restore points come from the filesystem.** Neither can be done
+to the mirror itself: compressing a feed file, or hard linking it into a dated
+snapshot directory, both mean rewriting the whole file on every run, which is
+exactly the cost this design exists to avoid. A copy on write filesystem gives
+both for free, because compression happens per extent below the append and a
+snapshot costs only the delta. Formatting the backup drive as btrfs and mounting
+it with `compress=zstd` is worth doing: measured on real PHPFina data, feed files
+compress by roughly 80%. The interface reports which of these the chosen drive
+supports.
 
 **Verify cost.** Verify reads every byte on both sides. Over gigabit ethernet a
 3 GB dataset is around half a minute of transfer; over wifi or 100 Mbit it is

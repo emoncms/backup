@@ -168,16 +168,23 @@ rsync_ownership_opts() {
 }
 
 # Enumerate mounted filesystems that could plausibly hold a backup, one per line as
-#   mountpoint<TAB>source<TAB>fstype<TAB>kind<TAB>free_mb<TAB>initialised
+#   mountpoint<TAB>source<TAB>fstype<TAB>kind<TAB>free_mb<TAB>initialised<TAB>compressed<TAB>snapshots
+#
+# compressed and snapshots report what the destination filesystem can add on top
+# of the incremental sync. Both come from copy on write filesystems rather than
+# from anything this script does: compression there happens per extent below the
+# append, and a CoW snapshot costs only the delta. Neither can be done to the
+# mirror itself, because compressing a feed file or hard linking it would mean
+# rewriting it whole on every run, which is the one thing this design avoids.
 #
 # This is the authority on which destinations may be selected. The Emoncms
 # interface offers the user a choice from this list and --set-path accepts
 # nothing that is not in it, so a compromised web interface cannot point a root
 # process at a directory of its own choosing.
 discover_destinations() {
-    local target source fstype kind free marker dev base removable
+    local target source fstype options kind free marker dev base removable
 
-    findmnt -rno TARGET,SOURCE,FSTYPE | while read -r target source fstype; do
+    findmnt -rno TARGET,SOURCE,FSTYPE,OPTIONS | while read -r target source fstype options; do
         case "${fstype}" in
             ext2|ext3|ext4|xfs|btrfs|f2fs|vfat|exfat|msdos|ntfs|ntfs3|fuseblk|nfs|nfs4|cifs|smb3|smbfs) ;;
             *) continue ;;
@@ -203,8 +210,18 @@ discover_destinations() {
         marker="no"
         [ -f "${target}/emoncms/.emoncms-backup-target" ] && marker="yes"
 
-        printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-            "${target}" "${source}" "${fstype}" "${kind}" "${free:-0}" "${marker}"
+        # Copy on write filesystems can compress transparently and snapshot cheaply
+        local compressed="no" snapshots="no"
+        case "${fstype}" in
+            btrfs)
+                snapshots="yes"
+                case "${options}" in *compress=*|*compress-force=*) compressed="yes" ;; esac
+                ;;
+        esac
+
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "${target}" "${source}" "${fstype}" "${kind}" "${free:-0}" "${marker}" \
+            "${compressed}" "${snapshots}"
     done
 }
 

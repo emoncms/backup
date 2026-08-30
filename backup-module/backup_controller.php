@@ -39,10 +39,54 @@ function backup_discover_drives($parsed_ini)
             "fstype"      => $f[2],
             "kind"        => $f[3],
             "free_mb"     => (int) $f[4],
-            "initialised" => ($f[5] === "yes")
+            "initialised" => ($f[5] === "yes"),
+            // What the destination filesystem adds on top of the incremental
+            // sync, see discover_destinations() in drive-backup.sh
+            "compressed"  => (isset($f[6]) && $f[6] === "yes"),
+            "snapshots"   => (isset($f[7]) && $f[7] === "yes")
         );
     }
     return $drives;
+}
+
+// Which discovered drive holds the configured backup path. Matched by longest
+// mountpoint prefix so a path set by hand in config.cfg still resolves to the
+// filesystem it actually lives on.
+function backup_drive_for_path($parsed_ini, $backup_path)
+{
+    $best = false;
+    $best_len = -1;
+    foreach (backup_discover_drives($parsed_ini) as $drive) {
+        $mp = rtrim($drive['mountpoint'], '/');
+        if ($mp === "") continue;
+        if ($backup_path === $mp || strpos($backup_path, $mp.'/') === 0) {
+            if (strlen($mp) > $best_len) { $best = $drive; $best_len = strlen($mp); }
+        }
+    }
+    return $best;
+}
+
+// When the daily timer will next run, so the interface can say whether the
+// backup is actually scheduled rather than only reporting the last run.
+function backup_next_scheduled()
+{
+    $out = array();
+    @exec("systemctl show emoncms-drive-backup.timer --property=NextElapseUSecRealtime,ActiveState 2>/dev/null", $out);
+
+    // null rather than false when systemd cannot be asked at all, in a container
+    // say. Only an answer of "the timer exists and is inactive" should be
+    // reported to the user as backups not being scheduled.
+    $next = false; $active = null;
+    foreach ($out as $line) {
+        if (strpos($line, "NextElapseUSecRealtime=") === 0) {
+            $v = trim(substr($line, strlen("NextElapseUSecRealtime=")));
+            if ($v !== "" && $v !== "n/a" && ctype_digit($v) && $v > 0) $next = (int) ($v / 1000000);
+        }
+        if (strpos($line, "ActiveState=") === 0) {
+            $active = (trim(substr($line, strlen("ActiveState="))) === "active");
+        }
+    }
+    return array("scheduled" => $active, "next_run" => $next);
 }
 
 function backup_controller()
@@ -65,6 +109,23 @@ function backup_controller()
         $ini_string_lines = $tmp;
     
         $parsed_ini = parse_ini_string(implode("\n",$ini_string_lines), true);
+
+        // A destination chosen in this interface is kept in its own file rather
+        // than in config.cfg, and takes precedence over it. Same precedence and
+        // same strict pattern as drive-backup.sh, so both sides agree on where
+        // the backup lives.
+        $path_conf = "$linked_modules_dir/backup/drive-backup-path.conf";
+        if (file_exists($path_conf)) {
+            foreach (file($path_conf) as $line) {
+                if (strpos($line, "drive_backup_path=") === 0) {
+                    $ui_path = trim(substr($line, strlen("drive_backup_path=")));
+                    if (preg_match('/^\/[A-Za-z0-9._@\/+-]+$/', $ui_path)) {
+                        $parsed_ini['drive_backup_path'] = $ui_path;
+                    }
+                    break;
+                }
+            }
+        }
     } else {
         return "<br><div class='alert alert-error'><b>".tr("Error:")."</b> ".tr("missing backup config.cfg")."</div>";
     }
@@ -142,7 +203,7 @@ function backup_controller()
         if ((move_uploaded_file($_FILES['file']['tmp_name'], $target_path)) && ($uploadOk == 1)) {
 
             $redis->rpush("service-runner", json_encode(["run" => "backup-import", "args" => [], "log" => "importbackup"]));
-            header('Location: '.$path.'backup#import-archive');
+            header('Location: '.$path.'backup#restore');
         } else {
             return "<br><div class='alert alert-error'><b>".tr("Error:")."</b> ".tr("Import archive not selected")."</div>";
         }
@@ -306,6 +367,12 @@ function backup_controller()
                     );
                 }
             }
+        }
+
+        $status['schedule'] = backup_next_scheduled();
+        if ($status['available']) {
+            $drive = backup_drive_for_path($parsed_ini, $drive_backup_path);
+            if ($drive !== false) $status['drive'] = $drive;
         }
 
         $result = $status;
