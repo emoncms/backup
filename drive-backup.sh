@@ -36,6 +36,18 @@
 #   ./drive-backup.sh --set-path <mountpoint>
 #                                  Select a destination from that list and
 #                                  prepare it. Used by the Emoncms interface.
+#   ./drive-backup.sh --discover-devices
+#                                  List attached drives that are NOT mounted yet
+#   ./drive-backup.sh --mount <id> Mount one of those drives, record it in
+#                                  /etc/fstab so it comes back after a reboot,
+#                                  and use it as the backup destination
+#   ./drive-backup.sh --format-mount <id> --confirm-erase
+#                                  As --mount, but first put an ext4 filesystem
+#                                  on a drive that has none. ERASES THE DRIVE.
+#   ./drive-backup.sh --enable-schedule
+#   ./drive-backup.sh --disable-schedule
+#                                  Turn the daily backup and weekly verify
+#                                  systemd timers on or off
 
 # Set the shell to trigger errors when commands within a pipe have a non-zero return code
 set -o pipefail
@@ -54,6 +66,10 @@ trap 'error_handler $? $LINENO' ERR
 
 start_seconds=$SECONDS
 
+# The arguments exactly as given. The parse loop below consumes them with shift,
+# so they are kept here for the re-exec under sudo further down.
+original_args=("$@")
+
 # State gathered as the script runs, reported in the summary and status.json
 bytes_written=0
 files_repaired=0
@@ -62,6 +78,9 @@ orphans=0
 dest_ready=false
 skipped=false
 mysql_defaults_file=""
+# Set by mount_device() and format_device() when they succeed
+mounted_at=""
+formatted_device=""
 
 # Exit handler used to ensure the exit message AJAX expects is found, whilst summarising if errors were found
 # This also picks up the natural exit when reaching end of script
@@ -240,6 +259,545 @@ discover_destinations() {
     done < <(findmnt -rno TARGET,SOURCE,FSTYPE,OPTIONS)
 }
 
+#-----------------------------------------------------------------------------------------------
+# Attached drives that are not mounted yet
+#
+# discover_destinations() above only sees filesystems that are already mounted,
+# which leaves the common case unsolved: a USB drive has just been plugged in and
+# nothing has mounted it. The functions below find those drives, and mount one
+# and record it in /etc/fstab so it comes back after a reboot.
+#
+# The same rule applies as to --set-path: the interface may only name a drive
+# that this script's own discovery reported, and the mount is re-checked against
+# that list here before anything privileged happens.
+#-----------------------------------------------------------------------------------------------
+
+# Run a command as root. The systemd timers already run this script as root; from
+# the Emoncms interface it runs as the service-runner user, which has sudo.
+# -n so that a system without the sudo rule fails immediately with a message
+# rather than blocking forever on a password prompt no one can answer.
+as_root() {
+    if [ "${EUID}" -eq 0 ]; then
+        "$@"
+    else
+        sudo -n "$@"
+    fi
+}
+
+# A single lsblk field for one device. Asked for one at a time on purpose: with
+# several fields a device with an empty value in the middle, no filesystem label
+# say, shifts every later column along and the wrong value is read.
+lsblk_field() {
+    lsblk -dno "$2" "$1" 2>/dev/null | head -1 | sed -e 's/[[:space:]]*$//' -e 's/^[[:space:]]*//'
+}
+
+# Values reported here end up in tab separated output and then in a web page, so
+# strip anything that would break the format. Labels and models come from the
+# drive itself and are not to be trusted to be well behaved.
+tsv_safe() {
+    printf '%s' "$1" | tr -d '\000-\037' | cut -c1-64
+}
+
+# The disks the running system is using. Anything on one of these is never
+# offered as a backup drive and never formatted, so a mistake here cannot reach
+# the SD card the system boots from.
+system_disks() {
+    local src disk
+    findmnt -rno SOURCE | sed 's/\[.*\]//' | sort -u | while read -r src; do
+        case "${src}" in /dev/*) ;; *) continue ;; esac
+        disk=$(lsblk -no PKNAME "${src}" 2>/dev/null | head -1)
+        [ -z "${disk}" ] && disk=$(basename "${src}")
+        echo "${disk}"
+    done | sort -u
+}
+
+# A name for a drive that survives unplugging and replugging it. Kernel names
+# like /dev/sda are assigned in the order drives appear, so a drive scanned as
+# /dev/sda can be a different drive by the time the user confirms. /dev/disk/by-id
+# is derived from the hardware itself, which matters most for the format action.
+stable_id() {
+    local dev="$1" real link uuid
+    real=$(readlink -f "${dev}")
+
+    # Prefer the descriptive id (usb-Samsung_Flash_Drive_...) over the bare wwn-
+    local pass
+    for pass in descriptive wwn; do
+        for link in /dev/disk/by-id/*; do
+            [ -e "${link}" ] || continue
+            case "${link}" in
+                */wwn-*|*/nvme-eui.*) [ "${pass}" == "wwn" ] || continue ;;
+                *) [ "${pass}" == "descriptive" ] || continue ;;
+            esac
+            if [ "$(readlink -f "${link}")" == "${real}" ]; then
+                echo "${link}"
+                return 0
+            fi
+        done
+    done
+
+    uuid=$(lsblk_field "${dev}" UUID)
+    if [ -n "${uuid}" ] && [ -e "/dev/disk/by-uuid/${uuid}" ]; then
+        echo "/dev/disk/by-uuid/${uuid}"
+        return 0
+    fi
+
+    echo "${real}"
+}
+
+# Is this device, or any partition on it, mounted right now
+device_is_mounted() {
+    local dev="$1" mp
+    while read -r mp; do
+        [ -n "${mp}" ] && return 0
+    done < <(lsblk -nro MOUNTPOINT "${dev}" 2>/dev/null)
+    return 1
+}
+
+# Enumerate attached drives that are not mounted, one per line as
+#   id<TAB>device<TAB>size_mb<TAB>fstype<TAB>label<TAB>model<TAB>kind<TAB>state
+#
+# state is one of:
+#   available     has a filesystem that can be mounted and used as it is
+#   infstab       already has an /etc/fstab entry, so it is configured but not
+#                 mounted: the drive was unplugged, or the entry is wrong
+#   nofilesystem  nothing on it to mount, it has to be formatted first
+#
+# This is the authority on which drives may be mounted or formatted, in the same
+# way discover_destinations() is the authority on which may be selected.
+discover_devices() {
+    local sys_disks dev kname type fstype id spec label model size_b size_mb
+    local parent ro kind state children
+
+    sys_disks=" $(system_disks | tr '\n' ' ') "
+
+    while read -r dev; do
+        [ -n "${dev}" ] || continue
+        [ -b "${dev}" ] || continue
+
+        type=$(lsblk_field "${dev}" TYPE)
+        case "${type}" in disk|part) ;; *) continue ;; esac
+
+        # A read only device cannot hold a backup
+        [ "$(lsblk_field "${dev}" RO)" == "1" ] && continue
+
+        kname=$(basename "$(readlink -f "${dev}")")
+        parent=$(lsblk_field "${dev}" PKNAME)
+        [ -z "${parent}" ] && parent="${kname}"
+        case " ${sys_disks} " in *" ${parent} "*) continue ;; esac
+
+        # A disk that has been partitioned is offered as its partitions, not as
+        # the whole disk, which could not be mounted anyway
+        if [ "${type}" == "disk" ]; then
+            children=$(lsblk -nro NAME "${dev}" 2>/dev/null | wc -l)
+            [ "${children}" -gt 1 ] && continue
+        fi
+
+        # Anything already mounted belongs in the discover_destinations() list
+        device_is_mounted "${dev}" && continue
+
+        fstype=$(lsblk_field "${dev}" FSTYPE)
+        case "${fstype}" in
+            ext2|ext3|ext4|xfs|btrfs|f2fs|vfat|exfat|msdos|ntfs|ntfs3) state="available" ;;
+            "") state="nofilesystem" ;;
+            # swap, LVM and RAID members, encrypted volumes and optical media are
+            # not something this module should be reformatting or mounting
+            *) continue ;;
+        esac
+
+        size_b=$(lsblk -bdno SIZE "${dev}" 2>/dev/null | head -1)
+        size_mb=$(( ${size_b:-0} / 1048576 ))
+        # Below this it is a boot or recovery partition rather than a backup
+        # drive, and offering it would only be a way to pick the wrong thing
+        [ "${size_mb}" -lt 512 ] && continue
+
+        id=$(stable_id "${dev}")
+        if [ "${state}" == "available" ]; then
+            spec=$(fstab_spec_for "${dev}" "${id}" || true)
+            if [ -n "${spec}" ] && fstab_has_spec "${spec}"; then
+                state="infstab"
+            fi
+        fi
+
+        kind="fixed"
+        [ "$(lsblk_field "${dev}" RM)" == "1" ] && kind="removable"
+        [ "$(lsblk_field "${dev}" HOTPLUG)" == "1" ] && kind="removable"
+
+        label=$(lsblk_field "${dev}" LABEL)
+        model=$(lsblk_field "${dev}" MODEL)
+        # A partition carries no model of its own, it belongs to the disk
+        [ -z "${model}" ] && [ -n "${parent}" ] && model=$(lsblk_field "/dev/${parent}" MODEL)
+
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "${id}" "${dev}" "${size_mb}" "${fstype}" \
+            "$(tsv_safe "${label}")" "$(tsv_safe "${model}")" "${kind}" "${state}"
+
+    done < <(lsblk -pnro NAME 2>/dev/null)
+
+    # Finding no drives is an answer, not a failure
+    return 0
+}
+
+# How this filesystem should be named in the first column of /etc/fstab.
+#
+# A filesystem UUID is the best answer: it follows the drive to another USB port
+# and is unaffected by other disks being added or repartitioned. Not every
+# filesystem has one. FAT has only a short volume serial and some drives report
+# none at all, so fall back to the partition's own UUID from the partition table,
+# and finally to the /dev/disk/by-id path the drive was chosen by, which is
+# derived from the hardware and is stable in the same way.
+#
+# Only reads udev and the blkid cache, so this works as the web server user and
+# gives the same answer as the privileged path below.
+fstab_spec_for() {
+    local dev="$1" id="$2" uuid partuuid
+
+    uuid=$(lsblk_field "${dev}" UUID)
+    [ -z "${uuid}" ] && uuid=$(blkid -s UUID -o value "${dev}" 2>/dev/null || true)
+    if [ -n "${uuid}" ]; then
+        echo "UUID=${uuid}"
+        return 0
+    fi
+
+    partuuid=$(lsblk_field "${dev}" PARTUUID)
+    [ -z "${partuuid}" ] && partuuid=$(blkid -s PARTUUID -o value "${dev}" 2>/dev/null || true)
+    if [ -n "${partuuid}" ]; then
+        echo "PARTUUID=${partuuid}"
+        return 0
+    fi
+
+    case "${id}" in
+        /dev/disk/by-id/*) echo "${id}"; return 0 ;;
+    esac
+    return 1
+}
+
+# Is this filesystem already named in /etc/fstab
+fstab_has_spec() {
+    local spec="$1"
+    [ -n "${spec}" ] || return 1
+    [ -f /etc/fstab ] || return 1
+    awk -v s="${spec}" '
+        /^[[:space:]]*#/ {next}
+        NF >= 2 && tolower($1) == tolower(s) {found=1}
+        END {exit !found}' /etc/fstab
+}
+
+# The mountpoint /etc/fstab already gives this filesystem, if any
+fstab_mountpoint_for_spec() {
+    local spec="$1"
+    [ -n "${spec}" ] || return 0
+    [ -f /etc/fstab ] || return 0
+    awk -v s="${spec}" '
+        /^[[:space:]]*#/ {next}
+        NF >= 2 && tolower($1) == tolower(s) {print $2; exit}' /etc/fstab
+}
+
+# Mount options for a backup drive.
+#
+#   noatime   reading every file on each run would otherwise write a metadata
+#             update per file, which on a flash drive is wear for nothing
+#   nofail    a drive that is not plugged in must not stop the system booting
+#   x-systemd.device-timeout   and must not delay the boot by 90s either
+fstab_options_for() {
+    local fstype="$1"
+    local common="noatime,nofail,x-systemd.device-timeout=10"
+    case "${fstype}" in
+        btrfs)
+            # Compresses as it writes, which on feed data is worth about 80%
+            echo "defaults,${common},compress=zstd"
+            ;;
+        vfat|msdos|exfat|ntfs|ntfs3)
+            # These cannot store unix ownership, so it is fixed at mount time.
+            # drive-restore.sh sets ownership correctly on the way back in.
+            echo "defaults,${common},uid=root,gid=root,umask=0022"
+            ;;
+        *)
+            echo "defaults,${common}"
+            ;;
+    esac
+}
+
+# ext filesystems are worth a boot time fsck pass, the others either have no
+# fsck or should not be checked automatically
+fstab_pass_for() {
+    case "$1" in
+        ext2|ext3|ext4) echo 2 ;;
+        *) echo 0 ;;
+    esac
+}
+
+# A free mountpoint under /media. One fixed name, numbered if it is taken, so
+# that what ends up in fstab is predictable and matches the documentation.
+choose_mountpoint() {
+    local base="/media/emoncms-backup" candidate n
+    for n in "" -2 -3 -4 -5 -6 -7 -8 -9; do
+        candidate="${base}${n}"
+        # Already used by another fstab entry
+        if [ -f /etc/fstab ] && awk -v p="${candidate}" '
+                /^[[:space:]]*#/ {next} $2==p {found=1} END{exit !found}' /etc/fstab; then
+            continue
+        fi
+        # Something is mounted there
+        mountpoint -q "${candidate}" 2>/dev/null && continue
+        # Exists and has something in it, which mounting over would hide
+        if [ -d "${candidate}" ] && [ -n "$(ls -A "${candidate}" 2>/dev/null)" ]; then
+            continue
+        fi
+        echo "${candidate}"
+        return 0
+    done
+    return 1
+}
+
+# Put a filesystem on a drive that has none. Destructive, and reached only from
+# --format-mount with --confirm-erase, on a drive discover_devices() reported as
+# nofilesystem, which by construction is not on any disk the system is using.
+format_device() {
+    local dev="$1" type part
+
+    type=$(lsblk_field "${dev}" TYPE)
+
+    if [ "${type}" == "disk" ]; then
+        if ! command -v parted > /dev/null; then
+            echo "ERROR: parted is not installed, cannot partition ${dev}"
+            echo "Install it with: sudo apt-get install -y parted"
+            return 1
+        fi
+        echo "Creating a GPT partition table and a single partition on ${dev}"
+        as_root parted -s "${dev}" mklabel gpt mkpart primary ext4 1MiB 100% || return 1
+        as_root udevadm settle || true
+        sleep 2
+
+        part=$(lsblk -pnro NAME "${dev}" 2>/dev/null | sed -n '2p')
+        if [ -z "${part}" ] || [ ! -b "${part}" ]; then
+            echo "ERROR: no partition appeared on ${dev} after partitioning"
+            return 1
+        fi
+        echo "Created ${part}"
+        dev="${part}"
+    fi
+
+    echo "Creating an ext4 filesystem on ${dev}"
+    # -m 0 leaves no blocks reserved for root: this is a backup drive, not a
+    # system disk, and 5% of it is worth more as backup space
+    as_root mkfs.ext4 -F -m 0 -L emoncms-backup "${dev}" || return 1
+    as_root udevadm settle || true
+
+    formatted_device="${dev}"
+    return 0
+}
+
+# Does the destination actually accept a write?
+#
+# A drive that is unplugged and plugged back in comes back as a new device and
+# leaves the old mount in place. That mount is still listed, and reads can still
+# be answered from the kernel's caches, so the marker file check above can pass
+# on a destination where every write will fail with an I/O error. Writing a few
+# bytes and forcing them out to the device is the only way to know.
+probe_destination_writable() {
+    local probe="${drive_backup_path}/.emoncms-backup-probe"
+    local content="emoncms-backup-probe-$$"
+
+    echo "${content}" > "${probe}" 2>/dev/null || return 1
+    # Without this the write sits in the page cache and the error surfaces
+    # later, part way through the backup, rather than here
+    sync -f "${probe}" 2>/dev/null || { rm -f "${probe}" 2>/dev/null; return 1; }
+    [ "$(cat "${probe}" 2>/dev/null)" == "${content}" ] || { rm -f "${probe}" 2>/dev/null; return 1; }
+    rm -f "${probe}" 2>/dev/null || return 1
+    return 0
+}
+
+# Turn the daily backup and weekly verify timers on or off.
+#
+# install.sh only enables them when drive_backup_path is already set, which on a
+# fresh install it is not, so a drive chosen afterwards would be backed up only
+# when someone presses the button. The interface can say that backups are not
+# scheduled, so it needs to be able to do something about it too.
+set_schedule() {
+    local action="$1"
+    local units="emoncms-drive-backup.timer emoncms-drive-backup-verify.timer"
+    local unit missing=false
+
+    for unit in ${units}; do
+        if ! systemctl list-unit-files "${unit}" 2>/dev/null | grep -q "^${unit}"; then
+            echo "ERROR: ${unit} is not installed"
+            missing=true
+        fi
+    done
+    if [ "${missing}" == "true" ]; then
+        echo "Run ${script_location}/install.sh to install the systemd units."
+        return 1
+    fi
+
+    if [ "${action}" == "enable" ]; then
+        echo "Enabling ${units}"
+        # --now so the timer starts counting immediately rather than at the next
+        # boot, which is what someone pressing this in the interface means
+        as_root systemctl enable --now ${units} || return 1
+        echo "Daily backup and weekly verify are now scheduled."
+    else
+        echo "Disabling ${units}"
+        as_root systemctl disable --now ${units} || return 1
+        echo "Backups will now only run when started by hand."
+    fi
+
+    systemctl list-timers 'emoncms-drive-backup*' --no-pager 2>/dev/null || true
+    return 0
+}
+
+# Mount a drive and record it in /etc/fstab so it returns after a reboot.
+# Sets mounted_at on success.
+mount_device() {
+    local id="$1" do_format="$2"
+    local row dev state fstype uuid spec mountpoint options pass line backup existing
+
+    echo "Requested drive: ${id}"
+
+    # The caller does not get to name an arbitrary device. It has to be one this
+    # script's own discovery just reported, which is what makes it safe to reach
+    # from the web interface.
+    row=$(discover_devices | awk -F'\t' -v i="${id}" '$1==i {print; exit}')
+    if [ -z "${row}" ]; then
+        echo "ERROR: ${id} is not one of the drives available to set up"
+        echo "Available:"
+        discover_devices | awk -F'\t' '{printf "  %s (%s, %s MB, %s, %s)\n", $1, $2, $3, ($4==""?"no filesystem":$4), $8}'
+        return 1
+    fi
+
+    dev=$(printf '%s' "${row}" | cut -f2)
+    fstype=$(printf '%s' "${row}" | cut -f4)
+    state=$(printf '%s' "${row}" | cut -f8)
+
+    echo "Device: ${dev}"
+    echo "Filesystem: ${fstype:-none}"
+    echo "State: ${state}"
+
+    case "${fstype}" in
+        vfat|msdos)
+            echo "NOTE: FAT cannot hold a file larger than 4 GB and cannot store unix"
+            echo "      ownership. Feed files are well below 4 GB and drive-restore.sh sets"
+            echo "      ownership on the way back in, so this works, but an ext4 drive is a"
+            echo "      better long term choice, and btrfs better still."
+            ;;
+    esac
+
+    if [ "${do_format}" == "true" ]; then
+        if [ "${state}" != "nofilesystem" ]; then
+            echo "ERROR: ${dev} already has a ${fstype} filesystem, refusing to format it"
+            echo "Only a drive with no filesystem at all is formatted by this action."
+            return 1
+        fi
+        echo ""
+        echo "--- Formatting ${dev}, everything on this drive is being erased ---"
+        formatted_device=""
+        format_device "${dev}" || return 1
+        dev="${formatted_device}"
+        fstype="ext4"
+        # The by-id name of the partition just created, not of the whole disk it
+        # sits on, which is what was scanned and confirmed
+        id=$(stable_id "${dev}")
+    elif [ "${state}" == "nofilesystem" ]; then
+        echo "ERROR: ${dev} has no filesystem, so there is nothing to mount"
+        echo "Format it first, or use a drive that already has a filesystem."
+        return 1
+    fi
+
+    # fstab names the filesystem by UUID rather than by /dev/sda1, which is
+    # assigned in the order drives are found and changes when another is added
+    spec=$(fstab_spec_for "${dev}" "${id}" || true)
+    if [ -z "${spec}" ]; then
+        # A filesystem created moments ago is not in the udev database or the
+        # blkid cache yet, so probe the device itself
+        uuid=$(as_root blkid -p -s UUID -o value "${dev}" 2>/dev/null || true)
+        [ -n "${uuid}" ] && spec="UUID=${uuid}"
+    fi
+    if [ -z "${spec}" ]; then
+        echo "ERROR: ${dev} has no UUID, partition UUID or by-id name to identify it by,"
+        echo "       so no stable /etc/fstab entry can be written for it."
+        return 1
+    fi
+    echo "Identified in /etc/fstab as: ${spec}"
+
+    # Already in fstab: use the mountpoint it names rather than adding a second
+    # entry for the same filesystem, which is how fstab files end up broken
+    existing=$(fstab_mountpoint_for_spec "${spec}")
+    if [ -n "${existing}" ]; then
+        echo "Already in /etc/fstab, mounted at ${existing}"
+        mountpoint="${existing}"
+        as_root mkdir -p "${mountpoint}"
+    else
+        mountpoint=$(choose_mountpoint)
+        if [ -z "${mountpoint}" ]; then
+            echo "ERROR: could not find a free mountpoint under /media"
+            return 1
+        fi
+        options=$(fstab_options_for "${fstype}")
+        pass=$(fstab_pass_for "${fstype}")
+        line=$(printf '%s\t%s\t%s\t%s\t0\t%s' "${spec}" "${mountpoint}" "${fstype}" "${options}" "${pass}")
+
+        echo "Mountpoint: ${mountpoint}"
+        echo "Adding to /etc/fstab:"
+        echo "    ${line}"
+
+        as_root mkdir -p "${mountpoint}" || return 1
+
+        backup="/etc/fstab.emoncms-backup.$(date +%Y%m%d%H%M%S).bak"
+        as_root cp -a /etc/fstab "${backup}" || return 1
+        echo "Previous /etc/fstab saved as ${backup}"
+
+        # Written through a temporary file and copied into place, so that a
+        # failure part way through cannot leave the system with a truncated
+        # fstab and an unbootable configuration
+        local tmp
+        tmp=$(mktemp) || return 1
+        {
+            cat /etc/fstab
+            echo ""
+            echo "# Added by the Emoncms backup module on $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo "${line}"
+        } > "${tmp}"
+        if ! as_root cp "${tmp}" /etc/fstab; then
+            rm -f "${tmp}"
+            echo "ERROR: could not write /etc/fstab"
+            return 1
+        fi
+        rm -f "${tmp}"
+        as_root chmod 644 /etc/fstab
+    fi
+
+    # systemd generates a .mount unit per fstab entry at daemon-reload, and
+    # mounts by mountpoint alone only once it has seen the new entry
+    as_root systemctl daemon-reload 2>/dev/null || true
+
+    echo "Mounting ${mountpoint}"
+    if ! as_root mount "${mountpoint}"; then
+        echo "ERROR: could not mount ${dev} at ${mountpoint}"
+        if [ -n "${backup}" ] && [ -f "${backup}" ]; then
+            echo "Restoring the previous /etc/fstab"
+            as_root cp "${backup}" /etc/fstab
+            as_root systemctl daemon-reload 2>/dev/null || true
+            as_root rmdir "${mountpoint}" 2>/dev/null || true
+        fi
+        return 1
+    fi
+
+    if ! mountpoint -q "${mountpoint}"; then
+        echo "ERROR: ${mountpoint} is still not a mount point after mounting"
+        return 1
+    fi
+
+    # The backup runs as root from the timer but the interface reads the drive as
+    # the web user, so the mountpoint itself has to be traversable by both
+    as_root chmod 755 "${mountpoint}" 2>/dev/null || true
+
+    echo "Mounted:"
+    findmnt -no SOURCE,TARGET,FSTYPE,OPTIONS "${mountpoint}"
+    echo "It will be mounted again automatically after a reboot."
+
+    mounted_at="${mountpoint}"
+    return 0
+}
+
 # rsync --dry-run does not report Literal data, so for a dry run work the append
 # volume out directly from the file sizes. Exact for the append case, and needs
 # only a stat of each file.
@@ -300,7 +858,12 @@ init=false
 dry_run=false
 if_mounted=false
 discover=false
+discover_devices_only=false
 set_path=""
+mount_id=""
+mount_format=false
+confirm_erase=false
+schedule_action=""
 
 while [ $# -gt 0 ]; do
     arg="$1"
@@ -310,6 +873,10 @@ while [ $# -gt 0 ]; do
         --dry-run)    dry_run=true ;;
         --if-mounted) if_mounted=true ;;
         --discover)   discover=true ;;
+        --discover-devices) discover_devices_only=true ;;
+        --confirm-erase)    confirm_erase=true ;;
+        --enable-schedule)  schedule_action="enable" ;;
+        --disable-schedule) schedule_action="disable" ;;
         --set-path)
             shift
             if [ -z "$1" ]; then
@@ -317,6 +884,15 @@ while [ $# -gt 0 ]; do
                 exit 1
             fi
             set_path="$1"
+            ;;
+        --mount|--format-mount)
+            [ "${arg}" == "--format-mount" ] && mount_format=true
+            shift
+            if [ -z "$1" ]; then
+                echo "Error: ${arg} requires a drive identifier from --discover-devices"
+                exit 1
+            fi
+            mount_id="$1"
             ;;
         --help|-h)
             # Print the header comment block, stopping at the blank line that ends it
@@ -327,6 +903,8 @@ while [ $# -gt 0 ]; do
         *)
             echo "Error: unknown argument ${arg}"
             echo "Usage: $0 [--init] [--verify] [--dry-run] [--if-mounted] [--discover] [--set-path <mountpoint>]"
+            echo "       $0 [--discover-devices] [--mount <id>] [--format-mount <id> --confirm-erase]"
+            echo "       $0 [--enable-schedule] [--disable-schedule]"
             exit 1
             ;;
     esac
@@ -337,11 +915,42 @@ script_location="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd
 config_location=${script_location}/config.cfg
 path_conf=${script_location}/drive-backup-path.conf
 
-# A plain query, answered without needing a configured or present destination
+# Plain queries, answered without needing a configured or present destination
+if [ "${discover_devices_only}" == "true" ]; then
+    discover_devices
+    trap - EXIT
+    exit 0
+fi
+
 if [ "${discover}" == "true" ]; then
     discover_destinations
     trap - EXIT
     exit 0
+fi
+
+#-----------------------------------------------------------------------------------------------
+# Everything past this point needs root
+#
+# The systemd timers run this script as root. Started from the Emoncms interface
+# it arrives as the service-runner user instead, which cannot read every feed
+# file, cannot write a mirror that keeps their ownership, and cannot mount a
+# drive or write to /etc/fstab. Re-exec under sudo rather than run on and report
+# a permission error for every file.
+#
+# The read only queries above are deliberately before this. They are run directly
+# by the web server user, which has no sudo rights and needs none.
+#-----------------------------------------------------------------------------------------------
+if [ "${EUID}" -ne 0 ]; then
+    if ! sudo -n true 2>/dev/null; then
+        echo "=== Emoncms drive backup start ==="
+        echo "ERROR: this needs to run as root, and $(id -un) cannot use sudo without a password."
+        echo "Run it with sudo, or let the emoncms-drive-backup systemd timer run it."
+        exit 1
+    fi
+    # exec, so that the caller waits on the real run and reads its output. The
+    # EXIT trap belongs to the process being replaced, so the completion message
+    # comes from the copy running as root.
+    exec sudo -n "$0" "${original_args[@]}"
 fi
 
 echo "=== Emoncms drive backup start ==="
@@ -349,6 +958,20 @@ date
 echo "Backup module version:"
 grep version "${script_location}/module.json"
 echo "EUID: $EUID"
+
+# Turning the schedule on or off is about the timers, not about any particular
+# destination, so it needs nothing from the config and is answered here
+if [ -n "${schedule_action}" ]; then
+    if set_schedule "${schedule_action}"; then
+        echo "=== Emoncms drive backup schedule updated ==="
+# The strings output are identified in the interface to stop ongoing AJAX calls, please ammend in interface if changed here
+        trap - EXIT
+        exit 0
+    fi
+    # finish() reports this as a failed run
+    exit 1
+fi
+
 echo "Mode: ${mode}$([ "${dry_run}" == "true" ] && echo " (dry run)")"
 echo "Reading ${config_location}...."
 
@@ -389,6 +1012,37 @@ if [ -f "${path_conf}" ]; then
 fi
 
 #-----------------------------------------------------------------------------------------------
+# --mount / --format-mount: set up a drive that is plugged in but not mounted
+#
+# Mounting it and writing the /etc/fstab entry is the part users find hardest and
+# get wrong most often, usually by mounting by hand and never adding it to fstab,
+# so the backup silently stops working at the next reboot.
+#
+# Once mounted the drive is an ordinary destination, so this hands straight over
+# to --set-path below rather than repeating what it does.
+#-----------------------------------------------------------------------------------------------
+if [ -n "${mount_id}" ]; then
+    if ! [[ "${mount_id}" =~ ^/dev/[A-Za-z0-9._:@/+-]+$ ]]; then
+        echo "ERROR: ${mount_id} is not a valid drive identifier"
+        exit 1
+    fi
+
+    if [ "${mount_format}" == "true" ] && [ "${confirm_erase}" != "true" ]; then
+        echo "ERROR: --format-mount erases the drive and requires --confirm-erase"
+        exit 1
+    fi
+
+    if ! mount_device "${mount_id}" "${mount_format}"; then
+        exit 1
+    fi
+
+    # Now that it is mounted it appears in discover_destinations(), and choosing
+    # it goes through exactly the same checks as any other destination
+    set_path="${mounted_at}"
+    echo ""
+fi
+
+#-----------------------------------------------------------------------------------------------
 # --set-path: choose a destination from the discovered list
 #
 # The mountpoint has to appear in this script's own discovery output. The caller
@@ -411,6 +1065,11 @@ if [ -n "${set_path}" ]; then
     umask 022
     printf '# Written by drive-backup.sh --set-path, do not edit by hand\ndrive_backup_path=%s\n' \
         "${drive_backup_path}" > "${path_conf}"
+
+    # Choosing a destination is a request for backups to happen, not just for the
+    # one that follows. install.sh could not enable the timers because nothing
+    # was configured when it ran, so this is the first moment they can be.
+    set_schedule enable || echo "WARNING: the backup timers could not be enabled"
 
     # Selecting a destination also prepares it, so the interface needs one action
     init=true
@@ -555,6 +1214,31 @@ if [ ! -f "${marker_file}" ]; then
     exit 1
 fi
 
+#-----------------------------------------------------------------------------------------------
+# Safety check: the destination has to accept a write, not merely be present
+#
+# Reported as a failure rather than a skipped run even under --if-mounted. A
+# drive that is plugged in but not working is not the same as one that is not
+# plugged in: it will never back up again until someone is told about it.
+#-----------------------------------------------------------------------------------------------
+echo "Checking the destination accepts writes.."
+if ! probe_destination_writable; then
+    echo "ERROR: ${drive_backup_path} is mounted but will not accept a write"
+    echo ""
+    echo "The usual cause is the drive having been unplugged and plugged back in."
+    echo "It comes back as a new device, and the old mount is left in place"
+    echo "answering every access with an I/O error. Remounting fixes it:"
+    echo ""
+    echo "    sudo umount -l ${dest_mountpoint:-${drive_backup_path}}"
+    echo "    sudo mount ${dest_mountpoint:-${drive_backup_path}}"
+    echo ""
+    echo "If that does not help, unplug the drive and plug it back in. If it keeps"
+    echo "happening, check 'sudo dmesg' for I/O errors: the drive, the cable or the"
+    echo "USB port may be at fault, and a drive that is failing should be replaced."
+    exit 1
+fi
+echo "-- writable"
+
 dest_ready=true
 mkdir -p "${drive_backup_path}"/{phpfina,phpfiwa,phptimeseries,config,sql/daily,sql/weekly}
 
@@ -667,11 +1351,18 @@ if [ "${dry_run}" == "false" ]; then
     sql_weekly_dir="${drive_backup_path}/sql/weekly"
 
     if [ "$(date +%u)" == "${drive_backup_weekly_day}" ] && [ -f "${sql_target}" ]; then
-        if ! ln -f "${sql_target}" "${sql_weekly_dir}/${sql_filename}" 2>/dev/null; then
-            # Destination filesystem does not support hard links (eg FAT/exFAT)
-            cp -f "${sql_target}" "${sql_weekly_dir}/${sql_filename}"
+        # A hard link costs no space and no writes. FAT and exFAT cannot make
+        # one, so fall back to a copy there.
+        if ln -f "${sql_target}" "${sql_weekly_dir}/${sql_filename}" 2>/dev/null ||
+           cp -f "${sql_target}" "${sql_weekly_dir}/${sql_filename}"; then
+            echo "Retained weekly copy ${sql_weekly_dir}/${sql_filename}"
+        else
+            # Reported here rather than left to the ERR trap, which can only say
+            # which line failed. Saying the copy was retained when it was not is
+            # worse than saying nothing.
+            echo "Error: could not retain the weekly copy in ${sql_weekly_dir}"
+            errors=true
         fi
-        echo "Retained weekly copy ${sql_weekly_dir}/${sql_filename}"
     fi
 
     prune_dumps "${sql_daily_dir}" "${drive_backup_retain_daily_sql}" "daily"
@@ -684,6 +1375,24 @@ fi
 # Newer systems use settings.ini rather than settings.php, only look for
 # settings.php if there is no settings.ini
 #-----------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------
+# -a implies -p -o -g. A CIFS share mounted with fixed uid/gid/file_mode, or any
+# FAT filesystem, cannot store unix ownership or permissions, and rsync then
+# reports a failure for every single file. Ownership is not worth preserving on
+# the backup anyway: drive-restore.sh sets it correctly on the way back in.
+#
+# Worked out here rather than with the feed data below, because the config files
+# are copied first and are subject to exactly the same limitation.
+#-----------------------------------------------------------------------------------------------
+ownership_opts=$(rsync_ownership_opts)
+if [ -n "${ownership_opts}" ]; then
+    if [ "${drive_backup_preserve_permissions}" == "no" ]; then
+        echo "Note: syncing without unix ownership, set by drive_backup_preserve_permissions"
+    else
+        echo "Note: ${dest_fstype:-destination} cannot store unix ownership, syncing without it"
+    fi
+fi
+
 echo ""
 echo "--- Configuration files ---"
 
@@ -696,10 +1405,15 @@ fi
 for file in "${config_files[@]}"; do
     if [ -f "${file}" ]; then
         # rsync rather than cp so an unchanged config file is not rewritten
-        out=$(rsync -a --stats $([ "${dry_run}" == "true" ] && echo "--dry-run") \
+        out=$(rsync -a --stats ${ownership_opts} $([ "${dry_run}" == "true" ] && echo "--dry-run") \
               "${file}" "${drive_backup_path}/config/" 2>&1)
-        add_literal_data "${out}"
+        rsync_rc=$?
         echo "-- ${file}"
+        if [ ${rsync_rc} -ne 0 ]; then
+            echo "Error: rsync of ${file} failed with code ${rsync_rc}"
+            echo "${out}"
+        fi
+        add_literal_data "${out}"
     else
         echo "no ${file} to backup"
     fi
@@ -828,18 +1542,7 @@ if [ "${dry_run}" == "true" ]; then
     rsync_opts+=(--dry-run)
 fi
 
-# -a implies -p -o -g. A CIFS share mounted with fixed uid/gid/file_mode, or any
-# FAT filesystem, cannot store unix ownership or permissions, and rsync then
-# reports a failure for every single file. Ownership is not worth preserving on
-# the backup anyway: drive-restore.sh sets it correctly on the way back in.
-ownership_opts=$(rsync_ownership_opts)
-if [ -n "${ownership_opts}" ]; then
-    if [ "${drive_backup_preserve_permissions}" == "no" ]; then
-        echo "Note: syncing without unix ownership, set by drive_backup_preserve_permissions"
-    else
-        echo "Note: ${dest_fstype:-destination} cannot store unix ownership, syncing without it"
-    fi
-fi
+# Set above, before the config files, which need the same treatment
 rsync_opts+=(${ownership_opts})
 
 # engine:file pattern:record size in bytes

@@ -40,6 +40,8 @@
         "not_set_up"      => tr("No automatic backup set up"),
         "not_set_up_d"    => tr("Your data is not being copied anywhere. Choose a drive below."),
         "not_connected"   => tr("Backup drive not connected"),
+        "not_responding"  => tr("Backup drive is not responding"),
+        "not_responding_d"=> tr("It is still mounted but will not answer. This normally means it was unplugged and plugged back in. Unplug it and plug it back in again, or remount it, and then run a backup to check."),
         "nothing_at"      => tr("Nothing is mounted at"),
         "resumes"         => tr("Backups resume when it is reconnected."),
         "ready_no_backup" => tr("Drive ready, no backup taken yet"),
@@ -74,6 +76,17 @@
         "restoring"       => tr("Restoring"),
         "show_log"        => tr("Show log"),
         "hide_log"        => tr("Hide log"),
+        "ran_ok"          => tr("Complete"),
+        "ran_failed"      => tr("Failed"),
+        "ran_skipped"     => tr("Nothing to do"),
+        "schedule_on"     => tr("Turning on daily backup"),
+        "schedule_off"    => tr("Turning off daily backup"),
+        "free_suffix"     => tr("free"),
+        "no_filesystem"   => tr("no filesystem"),
+        "scan"            => tr("Scan for drives"),
+        "scanning"        => tr("Scanning"),
+        "setting_up"      => tr("Setting up drive"),
+        "formatting"      => tr("Formatting drive"),
     );
 
     load_js("Lib/js/vue.global.prod-3.5.22.min.js");
@@ -125,6 +138,28 @@ body { background-color: var(--bg-body); }
     color: var(--text-secondary);
 }
 .backup-page .bk-subhead:first-child { margin-top: 0; }
+
+/* Names a group of cards. The page does two different jobs, an ongoing backup
+   to a drive and a portable copy to take away, and saying so is what keeps them
+   from reading as one long list. */
+.backup-page .bk-section {
+    margin: 1.8rem 0 0.6rem 0;
+    font-size: var(--font-2xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+}
+.backup-page .bk-section:first-child { margin-top: 0.4rem; }
+
+/* Spacing for blocks that follow something else inside a card body */
+.backup-page .bk-rows-spaced { margin-top: 0.9rem; }
+.backup-page .bk-actions-spaced { margin-top: 1rem; }
+.backup-page .bk-disclosure-spaced { margin-top: 1rem; }
+.backup-page .bk-hint { margin-top: 0.6rem; font-style: italic; }
+.backup-page .bk-notice ul { margin: 0.2rem 0 0.5rem 1.2rem; }
+.backup-page .bk-notice li { line-height: 1.5; }
+.backup-page .bk-disclosure .bk-caps { margin-top: 0.4rem; }
 
 /* ==========================================================================
    SECTION SWITCHER — as graph's .graph-section-switcher
@@ -180,6 +215,7 @@ body { background-color: var(--bg-body); }
 }
 .bk-badge.grey { color: var(--text-secondary); background-color: var(--bg-badge); border-color: var(--border-strong); }
 .bk-badge.ok   { color: var(--ok); background-color: var(--ok-bg); border-color: var(--ok-border); }
+.bk-badge.danger { color: var(--danger); background-color: var(--danger-bg); border-color: var(--danger-border); }
 
 .bk-rows { display: flex; flex-direction: column; }
 .bk-row { display: flex; gap: 1rem; padding: 0.45rem 0; border-bottom: 1px solid var(--border); }
@@ -296,57 +332,16 @@ body { background-color: var(--bg-body); }
             </div>
         </div>
 
-        <!-- No destination, or it is not connected: offer the drives found -->
-        <div class="card" v-if="status.configured === false || (status.configured && !status.available)">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name" v-if="!status.configured"><?php echo tr("Choose where backups are kept"); ?></span>
-                <span class="card-name" v-else><?php echo tr("Backup drive not available"); ?></span>
-            </div>
-            <div class="card-body">
-                <p class="muted" v-if="status.configured">
-                    <?php echo tr("Nothing is mounted at"); ?> <span class="mono">{{ status.path }}</span>.
-                    <?php echo tr("Reconnect it, or choose a different drive."); ?>
-                </p>
-                <p class="muted" v-else>
-                    <?php echo tr("Emoncms keeps a copy of your data on an attached drive. Mount a USB drive or network share, then choose it below."); ?>
-                </p>
-                <p class="muted" v-if="!drives.length"><?php echo tr("No drives found. Mount a USB drive or network share first. Add it to /etc/fstab so it is mounted again after a reboot."); ?></p>
-            </div>
+        <div class="bk-section"><?php echo tr("Automatic backup"); ?></div>
 
-            <table v-if="drives.length">
-                <thead><tr>
-                    <th><?php echo tr("Mounted at"); ?></th>
-                    <th><?php echo tr("Type"); ?></th>
-                    <th><?php echo tr("Free"); ?></th>
-                    <th class="right"></th>
-                </tr></thead>
-                <tbody>
-                    <tr v-for="d in drives" :key="d.mountpoint">
-                        <td>
-                            <span class="mono">{{ d.mountpoint }}</span><br>
-                            <span class="muted mono">{{ d.source }}</span>
-                        </td>
-                        <td>
-                            <span class="bk-badge" :class="{grey: d.kind=='fixed'}">{{ kind_label(d) }}</span>
-                            <span class="muted mono"> {{ d.fstype }}</span>
-                        </td>
-                        <td>{{ gb(d.free_mb) }}</td>
-                        <td class="right">
-                            <button class="btn btn-small btn-primary" :disabled="busy" @click="pick(d)">
-                                {{ d.initialised ? T.use_again : T.use_this_drive }}
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- The destination in use, and what it can do -->
+        <!-- The drive backup, all of it.
+             Where the copy goes, when it last ran, when it runs next and what
+             can be done to it are one subject, so they are one card rather than
+             four. The explanations sit with what they explain. -->
         <div class="card" v-if="status.available">
             <div class="card-header">
                 <span class="card-accent"></span>
-                <span class="card-name"><?php echo tr("Backup destination"); ?></span>
+                <span class="card-name"><?php echo tr("Backup drive"); ?></span>
                 <button class="btn btn-small" :disabled="busy" @click="change_drive = !change_drive"><?php echo tr("Change drive"); ?></button>
             </div>
             <div class="card-body">
@@ -361,103 +356,196 @@ body { background-color: var(--bg-body); }
                     </div>
                 </div>
 
-                <div class="bk-subhead"><?php echo tr("What this drive can do"); ?></div>
-                <div class="bk-caps">
-                    <div class="bk-cap yes">
-                        <span class="mark">&check;</span>
-                        <span><b><?php echo tr("Only new data is copied"); ?></b> &mdash;
-                        <?php echo tr("just the new readings each day, usually a few MB rather than all of your data."); ?></span>
+                <div class="bk-rows bk-rows-spaced">
+                    <div class="bk-row">
+                        <div class="k"><?php echo tr("Last backup"); ?></div>
+                        <div class="v" v-if="status.status">{{ local_time(status.status.last_run) }}
+                            <span class="muted">({{ ago(status.status.last_run) }})</span></div>
+                        <div class="v muted" v-else><?php echo tr("none yet"); ?></div>
                     </div>
-                    <div class="bk-cap" :class="caps.compressed ? 'yes' : 'no'">
-                        <span class="mark" v-if="caps.compressed">&check;</span><span class="mark" v-else>&ndash;</span>
-                        <span v-if="caps.compressed"><b><?php echo tr("Compressed"); ?></b> &mdash;
-                            <?php echo tr("the drive compresses as it writes. Feed data is typically about 80% smaller."); ?></span>
-                        <span v-else><b><?php echo tr("Not compressed"); ?></b> &mdash;
-                            <?php echo tr("feed files are copied as they are. Compressing them here would mean rewriting each one in full every day, which is exactly what this backup avoids. A btrfs drive mounted with compress=zstd compresses them as it writes instead."); ?></span>
+                    <div class="bk-row" v-if="status.status">
+                        <div class="k"><?php echo tr("Written"); ?></div>
+                        <div class="v">{{ bytes(status.status.bytes_written) }}
+                            <span class="muted"><?php echo tr("in"); ?> {{ duration(status.status.duration_seconds) }}</span></div>
                     </div>
-                    <div class="bk-cap" :class="caps.snapshots ? 'yes' : 'no'">
-                        <span class="mark" v-if="caps.snapshots">&check;</span><span class="mark" v-else>&ndash;</span>
-                        <span v-if="caps.snapshots"><b><?php echo tr("Dated copies of everything"); ?></b> &mdash;
-                            <?php echo tr("this drive can keep dated copies of the feed data as well as the database."); ?></span>
-                        <span v-else><b><?php echo tr("Dated copies of the database only"); ?></b> &mdash;
-                            <?php echo tr("feed data is kept at its latest state, so a problem that goes unnoticed for a while cannot be undone. A btrfs drive would add this."); ?></span>
+                    <div class="bk-row" v-if="status.status && (status.status.files_repaired || status.status.files_realigned)">
+                        <div class="k"><?php echo tr("Files repaired"); ?></div>
+                        <div class="v">{{ status.status.files_repaired }}
+                            <span class="muted">/ {{ status.status.files_realigned }} <?php echo tr("realigned"); ?></span></div>
                     </div>
-                </div>
-            </div>
-
-            <div v-if="change_drive">
-                <div class="card-header">
-                    <span class="card-accent"></span>
-                    <span class="card-name"><?php echo tr("Change to another drive"); ?></span>
-                </div>
-                <table v-if="drives.length">
-                    <tbody>
-                        <tr v-for="d in drives" :key="d.mountpoint">
-                            <td><span class="mono">{{ d.mountpoint }}</span></td>
-                            <td><span class="bk-badge" :class="{grey: d.kind=='fixed'}">{{ kind_label(d) }}</span></td>
-                            <td>{{ gb(d.free_mb) }}</td>
-                            <td class="right">
-                                <button class="btn btn-small" :disabled="busy" @click="pick(d)"><?php echo tr("Use this drive"); ?></button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div class="card-body" v-else><p class="muted"><?php echo tr("No other drives found."); ?></p></div>
-            </div>
-        </div>
-
-        <!-- Last run -->
-        <div class="card" v-if="status.available && status.status">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name"><?php echo tr("Last backup"); ?></span>
-            </div>
-            <div class="card-body">
-                <div class="bk-rows">
-                    <div class="bk-row"><div class="k"><?php echo tr("Finished"); ?></div><div class="v">{{ local_time(status.status.last_run) }} <span class="muted">({{ ago(status.status.last_run) }})</span></div></div>
-                    <div class="bk-row"><div class="k"><?php echo tr("Mode"); ?></div><div class="v">{{ status.status.mode }}<span v-if="status.status.dry_run"> (<?php echo tr("dry run"); ?>)</span></div></div>
-                    <div class="bk-row"><div class="k"><?php echo tr("Took"); ?></div><div class="v">{{ duration(status.status.duration_seconds) }}</div></div>
-                    <div class="bk-row"><div class="k"><?php echo tr("Written"); ?></div><div class="v">{{ bytes(status.status.bytes_written) }}</div></div>
-                    <div class="bk-row" v-if="status.status.files_repaired || status.status.files_realigned">
-                        <div class="k"><?php echo tr("Files repaired / realigned"); ?></div>
-                        <div class="v">{{ status.status.files_repaired }} / {{ status.status.files_realigned }}</div>
-                    </div>
-                    <div class="bk-row" v-if="status.status.orphans">
+                    <div class="bk-row" v-if="status.status && status.status.orphans">
                         <div class="k"><?php echo tr("Orphaned files"); ?></div>
-                        <div class="v">{{ status.status.orphans }} <span class="muted"><?php echo tr("on the backup but no longer in Emoncms"); ?></span></div>
+                        <div class="v">{{ status.status.orphans }}
+                            <span class="muted"><?php echo tr("on the drive, no longer in Emoncms"); ?></span></div>
+                    </div>
+                    <div class="bk-row" v-if="status.schedule && status.schedule.scheduled !== null">
+                        <div class="k"><?php echo tr("Next backup"); ?></div>
+                        <div class="v" v-if="status.schedule.scheduled && status.schedule.next_run">{{ local_time_ts(status.schedule.next_run) }}</div>
+                        <div class="v" v-else-if="status.schedule.scheduled"><?php echo tr("daily"); ?></div>
+                        <div class="v muted" v-else><?php echo tr("not scheduled, so this only happens when you press the button"); ?></div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Run now -->
-        <div class="card" v-if="status.available">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name"><?php echo tr("Run now"); ?></span>
-            </div>
-            <div class="card-body">
-                <p class="muted"><?php echo tr("Backups run each day on their own. Use these to run one now."); ?></p>
-                <div class="bk-actions">
+                <div class="bk-actions bk-actions-spaced">
                     <button class="btn btn-primary" :disabled="busy" @click="run('drivebackup','drivebackuplog')"><?php echo tr("Back up now"); ?></button>
                     <button class="btn" :disabled="busy" @click="run('drivebackupverify','drivebackupverifylog')"><?php echo tr("Verify and repair"); ?></button>
+                    <button class="btn btn-primary" v-if="status.schedule && status.schedule.scheduled === false"
+                            :disabled="busy" @click="set_schedule(true)"><?php echo tr("Turn on daily backup"); ?></button>
+                    <button class="btn" v-if="status.schedule && status.schedule.scheduled === true"
+                            :disabled="busy" @click="set_schedule(false)"><?php echo tr("Turn off daily backup"); ?></button>
                 </div>
-                <details class="bk-disclosure" style="margin-top:0.6rem">
+
+                <details class="bk-disclosure bk-disclosure-spaced">
+                    <summary><?php echo tr("How the daily backup works"); ?></summary>
+                    <div>
+                        <p><?php echo tr("Emoncms adds each reading to the end of a feed file, so the backup copies only what was added. That is a few MB a day rather than all of your data."); ?></p>
+                        <p><?php echo tr("The database is small, so a fresh copy is saved every run. Seven days and four weeks are kept."); ?></p>
+                    </div>
+                </details>
+                <details class="bk-disclosure">
                     <summary><?php echo tr("When should I verify?"); ?></summary>
-                    <div><?php echo tr("The daily backup only adds new readings to the end of each file, so it cannot spot a file that was changed in place without changing size. Verify checks every file and repairs any difference. It runs weekly on its own, so this is only for running it early."); ?></div>
+                    <div><p><?php echo tr("The daily run only adds to the end of each file, so it cannot see a file that changed in place. Verify checks every file and repairs any difference. It runs weekly on its own, so this is only for running it early."); ?></p></div>
+                </details>
+                <details class="bk-disclosure">
+                    <summary><?php echo tr("What this drive can do"); ?></summary>
+                    <div class="bk-caps">
+                        <div class="bk-cap yes">
+                            <span class="mark">&check;</span>
+                            <span><b><?php echo tr("Only new data is copied"); ?></b> &mdash;
+                            <?php echo tr("a few MB a day, not all of your data."); ?></span>
+                        </div>
+                        <div class="bk-cap" :class="caps.compressed ? 'yes' : 'no'">
+                            <span class="mark" v-if="caps.compressed">&check;</span><span class="mark" v-else>&ndash;</span>
+                            <span v-if="caps.compressed"><b><?php echo tr("Compressed"); ?></b> &mdash;
+                                <?php echo tr("the drive compresses as it writes. Feed data is about 80% smaller."); ?></span>
+                            <span v-else><b><?php echo tr("Not compressed"); ?></b> &mdash;
+                                <?php echo tr("files are copied as they are. A btrfs drive mounted with compress=zstd would compress them."); ?></span>
+                        </div>
+                        <div class="bk-cap" :class="caps.snapshots ? 'yes' : 'no'">
+                            <span class="mark" v-if="caps.snapshots">&check;</span><span class="mark" v-else>&ndash;</span>
+                            <span v-if="caps.snapshots"><b><?php echo tr("Dated copies of everything"); ?></b> &mdash;
+                                <?php echo tr("feed data as well as the database."); ?></span>
+                            <span v-else><b><?php echo tr("Dated copies of the database only"); ?></b> &mdash;
+                                <?php echo tr("feed data is kept at its latest state. A btrfs drive would add this."); ?></span>
+                        </div>
+                    </div>
                 </details>
             </div>
         </div>
 
-        <!-- Restore points -->
+        <!-- Choosing a drive.
+             One list, because it is one question. Drives that are mounted and
+             ready sit alongside drives that are plugged in and still need
+             setting up, and each row offers whatever that drive needs next.
+             Shown when there is nothing working, and when Change drive is
+             pressed, rather than existing twice. -->
+        <div class="card" v-if="!status.available || change_drive">
+            <div class="card-header">
+                <span class="card-accent"></span>
+                <span class="card-name" v-if="change_drive"><?php echo tr("Change backup drive"); ?></span>
+                <span class="card-name" v-else-if="!status.configured"><?php echo tr("Set up a backup drive"); ?></span>
+                <span class="card-name" v-else-if="status.unresponsive"><?php echo tr("Backup drive is not responding"); ?></span>
+                <span class="card-name" v-else><?php echo tr("Backup drive not available"); ?></span>
+                <button class="btn btn-small" :disabled="busy || scanning" @click="scan()">{{ scanning ? T.scanning : T.scan }}</button>
+            </div>
+            <div class="card-body">
+                <p class="muted" v-if="status.unresponsive && !change_drive">
+                    <span class="mono">{{ status.path }}</span>
+                    <?php echo tr("is mounted but every read and write to it fails. Unplug the drive and plug it back in, then run a backup to check."); ?>
+                </p>
+                <p class="muted" v-else-if="status.configured && !change_drive">
+                    <?php echo tr("Nothing is mounted at"); ?> <span class="mono">{{ status.path }}</span>.
+                    <?php echo tr("Reconnect it, or pick another drive."); ?>
+                </p>
+                <p class="muted" v-else>
+                    <?php echo tr("Emoncms keeps a copy of your data on an attached drive. Plug in a USB drive and pick it below."); ?>
+                </p>
+                <p class="muted" v-if="!choices.length">
+                    <?php echo tr("No drives found. Plug one in, then press Scan for drives."); ?>
+                </p>
+                <p class="muted" v-if="choices_needing_setup">
+                    <?php echo tr("A drive that is not set up yet will be mounted, added to /etc/fstab so it comes back after a reboot, and used from then on."); ?>
+                </p>
+            </div>
+
+            <table v-if="choices.length">
+                <thead><tr>
+                    <th><?php echo tr("Drive"); ?></th>
+                    <th><?php echo tr("Type"); ?></th>
+                    <th><?php echo tr("Space"); ?></th>
+                    <th class="right"></th>
+                </tr></thead>
+                <tbody>
+                    <template v-for="c in choices" :key="c.key">
+                    <tr>
+                        <td>{{ c.name }}<br><span class="muted mono">{{ c.detail }}</span></td>
+                        <td><span class="bk-badge" :class="{grey: c.kind != 'removable'}">{{ kind_label(c) }}</span></td>
+                        <td>{{ c.space }}</td>
+                        <td class="right">
+                            <button class="btn btn-small btn-primary" v-if="c.mounted"
+                                    :disabled="busy" @click="pick(c.drive)">
+                                {{ c.drive.initialised ? T.use_again : T.use_this_drive }}
+                            </button>
+                            <button class="btn btn-small btn-primary" v-else-if="c.device.state != 'nofilesystem'"
+                                    :disabled="busy" @click="ask_setup(c.device)"><?php echo tr("Set up this drive"); ?></button>
+                            <button class="btn btn-small btn-danger" v-else
+                                    :disabled="busy" @click="ask_setup(c.device)"><?php echo tr("Format and set up"); ?></button>
+                        </td>
+                    </tr>
+
+                    <!-- Confirmation. It says what will be done, rather than
+                         asking a yes/no question about the word "mount" -->
+                    <tr v-if="!c.mounted && confirm_id == c.device.id">
+                        <td colspan="4">
+                            <div v-if="c.device.state != 'nofilesystem'">
+                                <div class="bk-notice">
+                                    <p><b><?php echo tr("Set this drive up for backups?"); ?></b></p>
+                                    <ul>
+                                        <li v-if="c.device.state == 'infstab'"><?php echo tr("mount it where /etc/fstab already puts it"); ?></li>
+                                        <li v-else><?php echo tr("mount it at"); ?> <span class="mono">/media/emoncms-backup</span></li>
+                                        <li v-if="c.device.state != 'infstab'"><?php echo tr("add it to"); ?> <span class="mono">/etc/fstab</span>,
+                                            <?php echo tr("so it comes back after a reboot"); ?></li>
+                                        <li><?php echo tr("use it for backups from now on"); ?></li>
+                                    </ul>
+                                    <p class="muted"><?php echo tr("Nothing on the drive is erased. The current /etc/fstab is saved first, and put back if the drive will not mount."); ?></p>
+                                </div>
+                                <div class="bk-actions">
+                                    <button class="btn" @click="cancel_setup()"><?php echo tr("Cancel"); ?></button>
+                                    <button class="btn btn-primary" :disabled="busy" @click="do_mount(c.device)"><?php echo tr("Mount and use this drive"); ?></button>
+                                </div>
+                            </div>
+
+                            <div v-else>
+                                <div class="bk-notice danger">
+                                    <p><b><?php echo tr("This erases everything on the drive."); ?></b></p>
+                                    <p>{{ c.name }} (<span class="mono">{{ c.device.device }}</span>, {{ gb(c.device.size_mb) }})
+                                       <?php echo tr("has no filesystem on it. Setting it up writes a new partition table and an ext4 filesystem, destroying anything already there. This cannot be undone."); ?></p>
+                                    <p><?php echo tr("Check this is the drive you mean. Emoncms will not offer a drive the system runs from, but it cannot tell whether this one holds something you want."); ?></p>
+                                </div>
+                                <p><?php echo tr("Type ERASE to confirm:"); ?></p>
+                                <input type="text" v-model="erase_text" placeholder="ERASE">
+                                <div class="bk-actions">
+                                    <button class="btn" @click="cancel_setup()"><?php echo tr("Cancel"); ?></button>
+                                    <button class="btn btn-danger" :disabled="busy || erase_text != 'ERASE'"
+                                            @click="do_format_mount(c.device)"><?php echo tr("Erase, format and use this drive"); ?></button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- What can actually be recovered, which is the proof the backup works -->
         <div class="card" v-if="status.available">
             <div class="card-header">
                 <span class="card-accent"></span>
                 <span class="card-name"><?php echo tr("Restore points"); ?></span>
             </div>
             <div class="card-body">
-                <p class="muted"><?php echo tr("Dated copies of the Emoncms database kept on the drive. Feed data is kept at its latest state, not per date."); ?></p>
-                <p class="muted" v-if="!(status.sql && status.sql.length)"><?php echo tr("No restore points yet."); ?></p>
+                <p class="muted"><?php echo tr("Dated copies of the database kept on the drive. Feed data is kept at its latest state, not per date."); ?></p>
+                <p class="muted" v-if="!(status.sql && status.sql.length)"><?php echo tr("None yet."); ?></p>
             </div>
             <table v-if="status.sql && status.sql.length">
                 <thead><tr>
@@ -475,32 +563,22 @@ body { background-color: var(--bg-body); }
             </table>
         </div>
 
-        <!-- Portable archive, formerly the Export Archive tab -->
+        <!-- A different job from the drive backup, so it is kept apart from it
+             rather than sitting in the middle of it -->
+        <div class="bk-section"><?php echo tr("Portable copy"); ?></div>
+
         <div class="card">
             <div class="card-header">
                 <span class="card-accent"></span>
                 <span class="card-name"><?php echo tr("Download a portable copy"); ?></span>
             </div>
             <div class="card-body">
-                <p class="muted"><?php echo tr("A single compressed archive of everything, to keep off site or move to another emonPi / emonBase. It rewrites all of your data each time, so use it now and then rather than daily."); ?></p>
+                <p class="muted"><?php echo tr("One compressed file holding everything, to keep off site or move to another emonPi or emonBase. It rewrites all of your data each time, so use it now and then rather than daily."); ?></p>
                 <div class="bk-actions">
                     <button class="btn" :disabled="busy" @click="run('start','exportlog')"><?php echo tr("Build archive"); ?></button>
                     <a class="btn" v-if="archive_ready" href="<?php echo $path; ?>backup/download"><?php echo tr("Download"); ?>&nbsp;<span class="mono">{{ archive_filename }}</span></a>
                 </div>
-                <p class="muted" style="margin-top:0.6rem" v-if="!archive_ready"><i><?php echo tr("The download link appears here once the archive has been built."); ?></i></p>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-body">
-                <details class="bk-disclosure">
-                    <summary><?php echo tr("How the daily backup works"); ?></summary>
-                    <div>
-                        <p><?php echo tr("Emoncms adds each new reading to the end of a feed file. From one day to the next the only new data is at the end, so the backup copies just that rather than the whole file."); ?></p>
-                        <p><?php echo tr("On a system with 83 feeds and 738 MB of data that is about 2 MB a day, against roughly 1.5 GB for a full archive. It is quicker, it uses far less network bandwidth, and it is much kinder to a USB flash drive."); ?></p>
-                        <p><?php echo tr("The Emoncms database is small, so a fresh compressed copy is saved every run. The last seven days and the last four weeks are kept."); ?></p>
-                    </div>
-                </details>
+                <p class="muted bk-hint" v-if="!archive_ready"><?php echo tr("The download link appears here once the archive is built."); ?></p>
             </div>
         </div>
     </div>
@@ -616,6 +694,11 @@ body { background-color: var(--bg-body); }
             <span class="card-accent"></span>
             <span class="card-name">{{ log_title }}</span>
             <span class="bk-badge" v-if="busy"><?php echo tr("running"); ?></span>
+            <!-- Whether the run worked. The log ends in a line that says so, but
+                 that is the one line nobody scrolls down to read. -->
+            <span class="bk-badge ok" v-else-if="log_result == 'ok'">&check; {{ T.ran_ok }}</span>
+            <span class="bk-badge danger" v-else-if="log_result == 'error'">{{ T.ran_failed }}</span>
+            <span class="bk-badge grey" v-else-if="log_result == 'skipped'">{{ T.ran_skipped }}</span>
             <span class="bk-toggle">{{ show_log ? "\u25BE " + T.hide_log : "\u25B8 " + T.show_log }}</span>
         </div>
         <div class="card-body" v-show="show_log">
@@ -639,12 +722,20 @@ Vue.createApp({
     data() { return {
         T: <?php echo json_encode($T); ?>,
         tab: (location.hash === "#restore" ? "restore" : "backup"),
-        status: {configured: null, available: false, sql: [], free_mb: 0, total_mb: 0, path: ""},
+        status: {configured: null, available: false, unresponsive: false, sql: [], free_mb: 0, total_mb: 0, path: ""},
         drives: [],
+        // Drives that are plugged in but not mounted, from a scan
+        devices: [],
+        scanned: false,
+        scanning: false,
+        confirm_id: "",
+        erase_text: "",
         change_drive: false,
         busy: false,
         log_text: "",
         log_title: "",
+        // "", ok, error or skipped, from the completion marker in the log
+        log_result: "",
         show_log: true,
         archive_ready: <?php echo $archive_ready ? "true" : "false"; ?>,
         archive_filename: <?php echo json_encode($archive_filename); ?>,
@@ -668,6 +759,47 @@ Vue.createApp({
             return {compressed: !!(d && d.compressed), snapshots: !!(d && d.snapshots)};
         },
 
+        // Every drive that could be picked, as one list.
+        //
+        // Drives that are already mounted and drives that are plugged in and not
+        // set up are the same question to whoever is looking at the page, so
+        // they are one table with a different action per row, rather than two
+        // tables that have to be read as a pair.
+        choices: function() {
+            var self = this, list = [];
+
+            this.drives.forEach(function(d) {
+                list.push({
+                    key: "m:" + d.mountpoint,
+                    mounted: true,
+                    drive: d,
+                    name: d.mountpoint,
+                    detail: d.source + " \u00b7 " + d.fstype,
+                    kind: d.kind,
+                    space: self.gb(d.free_mb) + " " + self.T.free_suffix
+                });
+            });
+
+            this.devices.forEach(function(d) {
+                list.push({
+                    key: "d:" + d.id,
+                    mounted: false,
+                    device: d,
+                    name: self.device_name(d),
+                    detail: d.device + " \u00b7 " + (d.fstype ? d.fstype : self.T.no_filesystem),
+                    kind: d.kind,
+                    space: self.gb(d.size_mb)
+                });
+            });
+
+            return list;
+        },
+
+        // Whether to explain what setting a drive up will do
+        choices_needing_setup: function() {
+            return this.choices.some(function(c) { return !c.mounted; });
+        },
+
         used_percent: function() {
             if (!this.status.total_mb) return 0;
             return Math.min(100, Math.round((this.status.total_mb - this.status.free_mb) / this.status.total_mb * 100));
@@ -685,6 +817,12 @@ Vue.createApp({
                 next = " · " + T.next + " " + this.local_time_ts(s.schedule.next_run);
             }
 
+            // Mounted, present, and failing every access. Worth its own message:
+            // "reconnect the drive" is the wrong advice, and it is the advice the
+            // absent case gives.
+            if (s.unresponsive) return {
+                level: "danger", headline: T.not_responding, detail: T.not_responding_d
+            };
             if (!s.available) return {
                 level: "warn", headline: T.not_connected,
                 detail: T.nothing_at + " " + s.path + ". " + T.resumes
@@ -768,10 +906,64 @@ Vue.createApp({
             $.ajax({url: backup_path + "backup/drivebackupstatus", dataType: "json", success: function(s) {
                 self.status = s;
                 if (s.sql && s.sql.length && self.restore_sql === "") self.restore_sql = s.sql[0].name;
+                // Nothing is configured, so a drive is almost certainly plugged
+                // in waiting to be found. Look without making the user ask.
+                if (s.configured === false && !self.scanned && !self.scanning) self.scan();
             }});
             $.ajax({url: backup_path + "backup/drivediscover", dataType: "json", success: function(d) {
                 self.drives = d;
             }});
+            // Only once the list is on screen, so that it stays honest after a
+            // drive has been set up or unplugged. Until then it waits to be asked.
+            if (self.scanned) self.scan();
+        },
+
+        // Look for drives that are plugged in but not mounted
+        scan: function() {
+            var self = this;
+            self.scanning = true;
+            $.ajax({url: backup_path + "backup/drivedevices", dataType: "json",
+                success: function(d) { self.devices = d; },
+                complete: function() {
+                    self.scanning = false;
+                    self.scanned = true;
+                    // A drive that has just been set up is gone from the list,
+                    // so an open confirmation no longer refers to anything
+                    self.cancel_setup();
+                }});
+        },
+
+        // What to call a drive. Its own label if it has one, otherwise the model
+        // reported by the hardware, so it can be told apart from another drive.
+        device_name: function(d) {
+            if (d.label) return d.label;
+            if (d.model) return d.model;
+            return d.device;
+        },
+
+        ask_setup: function(d) {
+            this.confirm_id = (this.confirm_id == d.id ? "" : d.id);
+            this.erase_text = "";
+        },
+
+        cancel_setup: function() { this.confirm_id = ""; this.erase_text = ""; },
+
+        do_mount: function(d) {
+            this.cancel_setup();
+            this.start("drivemount?id=" + encodeURIComponent(d.id),
+                       "drivebackuplog", this.T.setting_up);
+        },
+
+        do_format_mount: function(d) {
+            if (this.erase_text !== "ERASE") return;
+            this.cancel_setup();
+            this.start("driveformatmount?id=" + encodeURIComponent(d.id) + "&confirm=ERASE",
+                       "drivebackuplog", this.T.formatting);
+        },
+
+        set_schedule: function(on) {
+            this.start("driveschedule?enable=" + (on ? "1" : "0"),
+                       "drivebackuplog", on ? this.T.schedule_on : this.T.schedule_off);
         },
 
         pick: function(drive) {
@@ -810,6 +1002,7 @@ Vue.createApp({
             self.log_text = "...";
             self.log_last = "";
             self.log_stall = 0;
+            self.log_result = "";
             $.ajax({url: backup_path + "backup/" + action, dataType: "text", success: function(result) {
                 self.log_text = result;
                 clearInterval(self.log_timer);
@@ -824,6 +1017,7 @@ Vue.createApp({
                 "=== Emoncms drive backup completed with ERRORS! ===",
                 "=== Emoncms drive backup skipped ===",
                 "=== Emoncms drive backup ready ===",
+                "=== Emoncms drive backup schedule updated ===",
                 "=== Emoncms drive restore complete! ===",
                 "=== Emoncms drive restore completed with ERRORS! ===",
                 "=== Emoncms drive restore cancelled ===",
@@ -835,6 +1029,14 @@ Vue.createApp({
                 if (text.indexOf(done[i]) != -1) return true;
             }
             return false;
+        },
+
+        // What the completion marker says about a finished run. Only meaningful
+        // once is_finished() is true.
+        outcome: function(text) {
+            if (text.indexOf("with ERRORS!") != -1) return "error";
+            if (text.indexOf("skipped ===") != -1 || text.indexOf("cancelled ===") != -1) return "skipped";
+            return "ok";
         },
 
         poll_log: function() {
@@ -849,6 +1051,7 @@ Vue.createApp({
                 if (self.is_finished(result)) {
                     clearInterval(self.log_timer);
                     self.busy = false;
+                    self.log_result = self.outcome(result);
                     self.refresh();
                     // The download link is offered from state rather than by
                     // reloading the page, so the log stays up for review

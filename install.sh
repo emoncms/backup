@@ -94,6 +94,12 @@ if ! command -v rsync > /dev/null; then
     sudo apt-get install -y rsync
 fi
 
+# drive-backup.sh --format-mount partitions a blank drive with parted
+if ! command -v parted > /dev/null; then
+    echo "- installing parted (required to format a blank backup drive)"
+    sudo apt-get install -y parted
+fi
+
 # ---------------------------------------------------------------
 # Install the drive-backup.sh systemd timers
 #

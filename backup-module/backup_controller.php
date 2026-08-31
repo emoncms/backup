@@ -49,6 +49,47 @@ function backup_discover_drives($parsed_ini)
     return $drives;
 }
 
+// Ask drive-backup.sh which attached drives are not mounted yet.
+//
+// The counterpart to backup_discover_drives(): that one lists filesystems that
+// are already mounted, this one lists drives that are plugged in and doing
+// nothing, which is what a user sees after plugging in a new USB drive. Also
+// read only, and the same script decides what --mount will accept.
+function backup_discover_devices($parsed_ini)
+{
+    $script = "";
+    if (isset($parsed_ini['backup_script_location'])) {
+        $script = $parsed_ini['backup_script_location']."/drive-backup.sh";
+    }
+    if (!is_file($script)) $script = "/opt/emoncms/modules/backup/drive-backup.sh";
+    if (!is_file($script)) return array();
+
+    $lines = array();
+    @exec(escapeshellarg($script)." --discover-devices 2>/dev/null", $lines);
+
+    $devices = array();
+    foreach ($lines as $line) {
+        $f = explode("\t", $line);
+        if (count($f) < 8) continue;
+        $devices[] = array(
+            // Identifier used to name this drive back to --mount. A
+            // /dev/disk/by-id path where the drive has one, so that it still
+            // refers to the same physical drive if the kernel names change
+            // between the scan and the user confirming.
+            "id"      => $f[0],
+            "device"  => $f[1],
+            "size_mb" => (int) $f[2],
+            "fstype"  => $f[3],
+            "label"   => $f[4],
+            "model"   => $f[5],
+            "kind"    => $f[6],
+            // available | infstab | nofilesystem, see discover_devices()
+            "state"   => $f[7]
+        );
+    }
+    return $devices;
+}
+
 // Which discovered drive holds the configured backup path. Matched by longest
 // mountpoint prefix so a path set by hand in config.cfg still resolves to the
 // filesystem it actually lives on.
@@ -277,6 +318,72 @@ function backup_controller()
         $redis->rpush("service-runner", json_encode(["run" => "backup-drive-setpath", "args" => ["--set-path", $mountpoint], "log" => "drivebackup"]));
     }
 
+    // Drives that are plugged in but not mounted, so the interface can offer to
+    // set one up rather than telling the user to go and edit /etc/fstab.
+    if ($route->action == 'drivedevices') {
+        $route->format = "json";
+        $result = backup_discover_devices($parsed_ini);
+    }
+
+    // Mount one of those drives, add it to /etc/fstab and use it for backups.
+    // As with drivesetpath, the identifier is checked here and then checked
+    // again by drive-backup.sh against its own discovery before it mounts
+    // anything, so this cannot be used to mount a device of the caller's
+    // choosing.
+    if ($route->action == 'drivemount') {
+        $route->format = "text";
+
+        $id = isset($_GET['id']) ? $_GET['id'] : "";
+        $found = false;
+        foreach (backup_discover_devices($parsed_ini) as $device) {
+            // A drive with no filesystem has nothing to mount. It needs
+            // driveformatmount, which asks the user a much bigger question.
+            if ($device['id'] === $id && $device['state'] !== "nofilesystem") $found = true;
+        }
+        if (!$found) {
+            return array('content' => tr("That drive is not available to set up"));
+        }
+
+        $result = tr("Setting up drive");
+        $redis->rpush("service-runner", json_encode(["run" => "backup-drive-mount", "args" => ["--mount", $id], "log" => "drivebackup"]));
+    }
+
+    // The same, but formatting the drive first. This erases it, so it is a
+    // separate action, only ever offered for a drive with no filesystem at all,
+    // and the browser has to send the confirmation word as well.
+    if ($route->action == 'driveformatmount') {
+        $route->format = "text";
+
+        $id = isset($_GET['id']) ? $_GET['id'] : "";
+        $confirm = isset($_GET['confirm']) ? $_GET['confirm'] : "";
+        if ($confirm !== "ERASE") {
+            return array('content' => tr("Formatting was not confirmed"));
+        }
+
+        $found = false;
+        foreach (backup_discover_devices($parsed_ini) as $device) {
+            if ($device['id'] === $id && $device['state'] === "nofilesystem") $found = true;
+        }
+        if (!$found) {
+            return array('content' => tr("That drive is not available to format"));
+        }
+
+        $result = tr("Formatting and setting up drive");
+        $redis->rpush("service-runner", json_encode(["run" => "backup-drive-mount", "args" => ["--format-mount", $id, "--confirm-erase"], "log" => "drivebackup"]));
+    }
+
+    // Turn the daily backup and weekly verify timers on or off. The interface
+    // reports whether backups are scheduled, so it has to be able to change it.
+    if ($route->action == 'driveschedule') {
+        $route->format = "text";
+
+        $enable = isset($_GET['enable']) && $_GET['enable'] == "1";
+        $arg = $enable ? "--enable-schedule" : "--disable-schedule";
+
+        $result = $enable ? tr("Turning on daily backup") : tr("Turning off daily backup");
+        $redis->rpush("service-runner", json_encode(["run" => "backup-drive-schedule", "args" => [$arg], "log" => "drivebackup"]));
+    }
+
     if ($route->action == 'driverestorelog') {
         $route->format = "text";
         if (file_exists($drive_restore_logfile)) {
@@ -334,6 +441,9 @@ function backup_controller()
             "configured" => ($drive_backup_path != ""),
             "path" => $drive_backup_path,
             "available" => false,
+            // Mounted and looking correct, but not answering. Distinct from
+            // absent, because the fix is to remount rather than to reconnect.
+            "unresponsive" => false,
             "status" => false,
             "free_mb" => 0,
             "total_mb" => 0,
@@ -343,28 +453,39 @@ function backup_controller()
         // The marker file is what drive-backup.sh itself checks for, so this
         // reports availability on exactly the same basis as the script
         if ($status['configured'] && file_exists("$drive_backup_path/.emoncms-backup-target")) {
-            $status['available'] = true;
 
+            // A drive that was unplugged and plugged back in leaves the old mount
+            // in place, answering every access with an I/O error. file_exists()
+            // above can still be satisfied from the kernel's directory cache, so
+            // ask the filesystem something it cannot answer from cache before
+            // trusting any of this.
             $free = @disk_free_space($drive_backup_path);
             $total = @disk_total_space($drive_backup_path);
-            if ($free !== false) $status['free_mb'] = round($free / 1048576);
-            if ($total !== false) $status['total_mb'] = round($total / 1048576);
+            $marker_readable = (@file_get_contents("$drive_backup_path/.emoncms-backup-target") !== false);
 
-            if (file_exists("$drive_backup_path/status.json")) {
-                $decoded = json_decode(file_get_contents("$drive_backup_path/status.json"), true);
-                if ($decoded !== null) $status['status'] = $decoded;
-            }
+            if ($free === false || $total === false || !$marker_readable) {
+                $status['unresponsive'] = true;
+            } else {
+                $status['available'] = true;
+                $status['free_mb'] = round($free / 1048576);
+                $status['total_mb'] = round($total / 1048576);
 
-            foreach (array("daily","weekly") as $period) {
-                $files = @glob("$drive_backup_path/sql/$period/*.sql.gz");
-                if ($files === false) $files = array();
-                rsort($files);
-                foreach ($files as $file) {
-                    $status['sql'][] = array(
-                        "period" => $period,
-                        "name" => basename($file),
-                        "size_mb" => round(filesize($file) / 1048576, 1)
-                    );
+                if (file_exists("$drive_backup_path/status.json")) {
+                    $decoded = json_decode(file_get_contents("$drive_backup_path/status.json"), true);
+                    if ($decoded !== null) $status['status'] = $decoded;
+                }
+
+                foreach (array("daily","weekly") as $period) {
+                    $files = @glob("$drive_backup_path/sql/$period/*.sql.gz");
+                    if ($files === false) $files = array();
+                    rsort($files);
+                    foreach ($files as $file) {
+                        $status['sql'][] = array(
+                            "period" => $period,
+                            "name" => basename($file),
+                            "size_mb" => round(filesize($file) / 1048576, 1)
+                        );
+                    }
                 }
             }
         }

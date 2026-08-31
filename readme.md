@@ -73,6 +73,20 @@ no need to stop `feedwriter`.
 
 ### Setup
 
+The quickest route is the **Backup** tab of the backup module in Emoncms: plug
+the drive in, press **Scan for drives**, and it offers to set up what it finds.
+Confirming mounts the drive, adds it to `/etc/fstab` so it is mounted again after
+a reboot, selects it as the backup destination and prepares it. A drive with no
+filesystem on it is offered separately, with a typed confirmation, and is
+partitioned and formatted as ext4 first.
+
+Only drives that are plugged in and not already mounted are offered, and never
+anything on a disk the running system is using, so the SD card cannot be picked
+by mistake. See [Setting up a drive from the interface](#setting-up-a-drive-from-the-interface)
+below for what it does and does not do.
+
+To do it by hand instead:
+
 **1. Mount the drive.**
 
 For a USB disk, use `noatime` so that reading every file on each run does not
@@ -106,8 +120,20 @@ Or set it by hand in `config.cfg` and prepare it yourself:
     ./drive-backup.sh --verify     # full checksum check and repair
     ./drive-backup.sh --dry-run    # report what would be written, write nothing
     ./drive-backup.sh --if-mounted # skip quietly if the drive is unavailable
-    ./drive-backup.sh --discover   # list drives that could hold a backup
+    ./drive-backup.sh --discover   # list mounted drives that could hold a backup
     ./drive-backup.sh --set-path <mountpoint>   # select one and prepare it
+
+    ./drive-backup.sh --discover-devices        # list drives that are not mounted
+    ./drive-backup.sh --mount <id>              # mount one, add it to fstab, use it
+    ./drive-backup.sh --format-mount <id> --confirm-erase   # ERASES the drive first
+
+    ./drive-backup.sh --enable-schedule    # turn the daily and weekly timers on
+    ./drive-backup.sh --disable-schedule   # and off again
+
+`<id>` is the identifier in the first column of `--discover-devices`, normally a
+`/dev/disk/by-id/` path. It is used rather than `/dev/sda1` because kernel names
+are handed out in the order drives are found, so the drive that was `/dev/sda`
+during a scan can be a different drive by the time the user confirms.
 
 The first run copies the whole dataset; later runs append only new data.
 
@@ -121,8 +147,17 @@ is thorough without being wasteful.
 ### Scheduling
 
 `install.sh` installs two systemd timers. They are enabled automatically if
-`drive_backup_path` is already set when you run it, otherwise enable them once you
-have configured and initialised the drive:
+`drive_backup_path` is already set when it runs, which on a fresh install it is
+not. Choosing a destination enables them, whether that is done in the interface
+or with `--set-path`, so in the normal case there is nothing to do.
+
+They can also be turned on and off from the **Run now** card in the interface, or
+from a shell:
+
+    ./drive-backup.sh --enable-schedule
+    ./drive-backup.sh --disable-schedule
+
+which is equivalent to:
 
     sudo systemctl enable --now emoncms-drive-backup.timer emoncms-drive-backup-verify.timer
 
@@ -161,14 +196,80 @@ The backup module has two tabs, **Backup** and **Restore**.
 Backup opens with a single line saying whether the data is actually protected:
 green only when a recent backup exists *and* the daily timer is running, amber
 when the drive is disconnected, when backups are falling behind, or when nothing
-is scheduled, red when the last run failed or the backup is more than a week old.
-Below that it lists the drives it found so one can be chosen, shows what that
-drive can give you, the result of the last run, the restore points held, and
-buttons to back up, verify, or build a portable archive to download.
+is scheduled, red when the last run failed, when the backup is more than a week
+old, or when the drive is mounted but not answering.
+
+Below that the tab is in two parts, because it does two different jobs:
+
+**Automatic backup** is the ongoing protection. One card holds everything about
+it: where the copy goes, how full the drive is, when it last ran and what it
+wrote, when it runs next, and the buttons to back up, verify, or turn the daily
+schedule on and off. The explanations sit inside it as disclosures, next to what
+they explain, rather than at the foot of the page. A second card lists the
+restore points held on the drive.
+
+When there is no working destination, or **Change drive** is pressed, a single
+card offers every drive that could be used: those already mounted alongside those
+that are plugged in and still need setting up, in one list, each row offering
+whatever that drive needs next. Pressing **Scan for drives** looks again.
+
+**Portable copy** is the occasional one: build an archive and download it. It is
+kept apart from the drive backup rather than sitting in the middle of it.
+
+Every run reports whether it worked in the header of its log.
 
 Restore gathers all three recovery paths in one place: the backup drive, an
 uploaded `.tar.gz` archive, and an old emonSD card in a USB reader. Each requires
 ticking a confirmation box.
+
+#### Setting up a drive from the interface
+
+**Scan for drives** runs `--discover-devices`, which lists attached block devices
+that are not mounted. A device is only offered if it is not on any disk carrying
+a mounted filesystem, is not read only, is at least 512 MB, and either holds a
+filesystem that can be mounted or holds nothing at all. Swap, LVM and RAID
+members and encrypted volumes are never listed.
+
+Confirming runs `--mount <id>`, which:
+
+1. re-checks the identifier against its own `--discover-devices` output, exactly
+   as `--set-path` re-checks a mountpoint, so the interface cannot name a device
+   of its own choosing
+2. works out how to name the filesystem in `/etc/fstab`: its UUID where it has
+   one, otherwise its `PARTUUID`, otherwise the `/dev/disk/by-id/` path it was
+   chosen by. FAT has only a short volume serial and some drives report none at
+   all, so a UUID cannot be assumed. If that name is already in `/etc/fstab` the
+   mountpoint that entry gives is used, rather than a second entry being added
+   for the same filesystem
+3. otherwise picks the first free `/media/emoncms-backup`, `-2`, `-3` ... and
+   appends an entry with `noatime,nofail,x-systemd.device-timeout=10`, plus
+   `compress=zstd` on btrfs and fixed `uid`/`gid` on filesystems that cannot
+   store unix ownership
+4. copies `/etc/fstab` to `/etc/fstab.emoncms-backup.<timestamp>.bak` first, and
+   restores it if the drive then fails to mount, so a drive that will not mount
+   cannot leave an entry behind that breaks the next boot
+5. hands over to `--set-path`, so selecting and preparing the destination goes
+   through the same code as choosing an already mounted drive
+
+`--format-mount <id> --confirm-erase` additionally writes a GPT label, a single
+partition and an ext4 filesystem labelled `emoncms-backup`, with `-m 0` so none
+of the drive is reserved for root. It refuses to run on a device that already
+has a filesystem, so it can only ever erase a drive that appeared as
+`nofilesystem` in the scan. The interface asks for `ERASE` to be typed and sends
+that word with the request; the module checks it before queueing anything.
+
+#### Running as root
+
+Everything past the read only queries needs root: reading every feed file,
+writing a mirror that keeps their ownership, mounting a drive and writing
+`/etc/fstab`. The systemd timers run the script as root already. Started from the
+Emoncms interface it arrives as the `service-runner` user instead, so it re-execs
+itself under `sudo -n` rather than running on and reporting a permission error
+for every file. Without passwordless sudo it stops with a message instead of
+waiting for a prompt no one can answer.
+
+`--discover` and `--discover-devices` are deliberately before that point. They are
+run directly by the web server user, which has no sudo rights and needs none.
 
 The destination chosen in the interface is written to `drive-backup-path.conf`
 rather than to `config.cfg`, and it takes precedence over `config.cfg`.
@@ -177,8 +278,9 @@ deliberately not writable from the web interface. The interface can only select
 a mountpoint that `drive-backup.sh --discover` reported, and `--set-path`
 re-checks that the mountpoint is in that list before accepting it, so choosing a
 destination can never point a root process at an arbitrary directory. The tab needs `service-runner` to be running, and the
-`backup-drive-sync`, `backup-drive-verify` and `backup-drive-restore` actions to be
-present in its whitelist (they are in Emoncms core).
+`backup-drive-sync`, `backup-drive-verify`, `backup-drive-setpath`,
+`backup-drive-mount`, `backup-drive-schedule` and `backup-drive-restore` actions to
+be present in its whitelist (they are in Emoncms core).
 
 ### Layout on the drive
 
@@ -270,6 +372,32 @@ minutes. For a network destination consider running it monthly instead of weekly
 The daily append run is unaffected: it transfers only the new readings, a few
 megabytes, so the saving over pushing a full archive across the network every
 night is far larger than on a local disk.
+
+### A drive that was unplugged and plugged back in
+
+Unplugging a USB drive and plugging it back in does not restore the mount. The
+drive comes back as a new device and the old mount is left behind, still listed
+by `findmnt` and still answering reads out of the kernel's caches, but failing
+every write with `Input/output error`. Nothing in the mount table says anything
+is wrong.
+
+Checking the marker file is not enough to catch this, because that check can be
+satisfied from cache. So before writing anything the script writes a few bytes to
+the destination, forces them out to the device with `sync -f`, reads them back and
+removes them. If that fails it stops and says so, with the two commands that fix
+it:
+
+    sudo umount -l /media/emoncms-backup
+    sudo mount /media/emoncms-backup
+
+This is reported as a failed run rather than a skipped one, even under
+`--if-mounted`. A drive that is plugged in but not working is not the same as a
+drive that is absent: left alone it would never back up again, and nobody would
+be told.
+
+The interface reports the same state separately from a disconnected drive, since
+"reconnect the drive" is the wrong advice here, and it is what the disconnected
+message says.
 
 ### Safety
 
