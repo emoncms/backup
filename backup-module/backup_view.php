@@ -124,7 +124,7 @@ body { background-color: var(--bg-body); }
 /* ==========================================================================
    SECTION SWITCHER — as graph's .graph-section-switcher
    ========================================================================== */
-.bk-switcher { display: flex; justify-content: center; margin-bottom: 1rem; }
+.bk-switcher { display: flex; justify-content: flex-start; margin-bottom: 1rem; }
 .bk-switcher .btn-group { display: inline-flex; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .bk-switcher .btn { padding-inline: 1.4rem; }
 .bk-switcher .btn.active {
@@ -272,14 +272,6 @@ body { background-color: var(--bg-body); }
 </style>
 
 <div class="backup-page" id="backup-app" v-cloak>
-
-    <?php if (!$servicerunner_running) { ?>
-    <div class="bk-notice danger">
-        <b><?php echo tr("service-runner is not running"); ?></b> &mdash;
-        <?php echo tr("nothing on this page can run until it is."); ?>
-        <a href="https://github.com/emoncms/emoncms/blob/master/scripts/services/install-service-runner-update.md"><?php echo tr("Installation instructions"); ?></a>
-    </div>
-    <?php } ?>
 
     <div class="bk-switcher">
         <div class="btn-group">
@@ -628,6 +620,14 @@ body { background-color: var(--bg-body); }
             <pre class="bk-log" ref="log">{{ log_text }}</pre>
         </div>
     </div>
+
+    <?php if (!$servicerunner_running) { ?>
+    <div class="bk-notice danger">
+        <b><?php echo tr("service-runner is not running"); ?></b> &mdash;
+        <?php echo tr("nothing on this page can run until it is."); ?>
+        <a href="https://github.com/emoncms/emoncms/blob/master/scripts/services/install-service-runner-update.md"><?php echo tr("Installation instructions"); ?></a>
+    </div>
+    <?php } ?>
 </div>
 
 <script>
