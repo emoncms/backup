@@ -31,7 +31,7 @@
     @exec('ps ax | grep service-runner.py | grep -v grep', $servicerunnerproc);
     $servicerunner_running = !empty($servicerunnerproc);
 
-    $archive_filename = "emoncms-backup-".gethostname()."-".date("Y-m-d").".tar.gz";
+    $archive_filename = "emoncms-backup-".preg_replace('/[^a-zA-Z0-9\-]/', '-', gethostname())."-".date("Y-m-d").".tar.gz";
     $archive_ready = file_exists($parsed_ini['backup_location']."/".$archive_filename)
                      && !file_exists("/tmp/backuplock");
 
@@ -72,6 +72,8 @@
         "building"        => tr("Building archive"),
         "importing_sd"    => tr("Importing from SD card"),
         "restoring"       => tr("Restoring"),
+        "show_log"        => tr("Show log"),
+        "hide_log"        => tr("Hide log"),
     );
 
     load_js("Lib/js/vue.global.prod-3.5.22.min.js");
@@ -107,6 +109,9 @@ body { background-color: var(--bg-body); }
 /* Card headers here label a section, they do not collapse it */
 .backup-page .card-header { cursor: default; }
 .backup-page .card-header:hover { background-color: var(--bg-card-header); }
+.backup-page .card-header.is-toggle { cursor: pointer; }
+.backup-page .card-header.is-toggle:hover { background-color: var(--bg-card-header-hover); }
+.backup-page .card-header .bk-toggle { font-size: var(--font-2xs); color: var(--accent); white-space: nowrap; }
 .backup-page .card-header .btn { margin-left: auto; }
 .backup-page .card-body { padding: 1rem; }
 
@@ -480,13 +485,9 @@ body { background-color: var(--bg-body); }
                 <p class="muted"><?php echo tr("A single compressed archive of everything, to keep off site or move to another emonPi / emonBase. It rewrites all of your data each time, so use it now and then rather than daily."); ?></p>
                 <div class="bk-actions">
                     <button class="btn" :disabled="busy" @click="run('start','exportlog')"><?php echo tr("Build archive"); ?></button>
-                    <?php if ($archive_ready) { ?>
-                    <a class="btn" href="<?php echo $path; ?>backup/download"><?php echo tr("Download"); ?>&nbsp;<span class="mono"><?php echo $archive_filename; ?></span></a>
-                    <?php } ?>
+                    <a class="btn" v-if="archive_ready" href="<?php echo $path; ?>backup/download"><?php echo tr("Download"); ?>&nbsp;<span class="mono">{{ archive_filename }}</span></a>
                 </div>
-                <?php if (!$archive_ready) { ?>
-                <p class="muted" style="margin-top:0.6rem"><i><?php echo tr("Once the archive is built, refresh the page to see the download link."); ?></i></p>
-                <?php } ?>
+                <p class="muted" style="margin-top:0.6rem" v-if="!archive_ready"><i><?php echo tr("The download link appears here once the archive has been built."); ?></i></p>
             </div>
         </div>
 
@@ -611,12 +612,13 @@ body { background-color: var(--bg-body); }
 
     <!-- Shared activity log -->
     <div class="card" v-if="log_text !== ''">
-        <div class="card-header">
+        <div class="card-header is-toggle" @click="show_log = !show_log">
             <span class="card-accent"></span>
             <span class="card-name">{{ log_title }}</span>
             <span class="bk-badge" v-if="busy"><?php echo tr("running"); ?></span>
+            <span class="bk-toggle">{{ show_log ? "\u25BE " + T.hide_log : "\u25B8 " + T.show_log }}</span>
         </div>
-        <div class="card-body">
+        <div class="card-body" v-show="show_log">
             <pre class="bk-log" ref="log">{{ log_text }}</pre>
         </div>
     </div>
@@ -643,6 +645,9 @@ Vue.createApp({
         busy: false,
         log_text: "",
         log_title: "",
+        show_log: true,
+        archive_ready: <?php echo $archive_ready ? "true" : "false"; ?>,
+        archive_filename: <?php echo json_encode($archive_filename); ?>,
         log_action: "",
         log_timer: false,
         log_last: "",
@@ -799,6 +804,7 @@ Vue.createApp({
         start: function(action, log_action, title) {
             var self = this;
             self.busy = true;
+            self.show_log = true;
             self.log_action = log_action;
             self.log_title = title;
             self.log_text = "...";
@@ -844,9 +850,12 @@ Vue.createApp({
                     clearInterval(self.log_timer);
                     self.busy = false;
                     self.refresh();
-                    // The archive download link is rendered server side, so the
-                    // page has to come back to pick it up
-                    if (self.log_action == "exportlog") location.reload();
+                    // The download link is offered from state rather than by
+                    // reloading the page, so the log stays up for review
+                    if (self.log_action == "exportlog" &&
+                        result.indexOf("=== Emoncms export complete! ===") != -1) {
+                        self.archive_ready = true;
+                    }
                     return;
                 }
 
