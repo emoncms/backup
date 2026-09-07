@@ -42,8 +42,9 @@
 #                                  /etc/fstab so it comes back after a reboot,
 #                                  and use it as the backup destination
 #   ./drive-backup.sh --format-mount <id> --confirm-erase
-#                                  As --mount, but first put an ext4 filesystem
-#                                  on a drive that has none. ERASES THE DRIVE.
+#                                  As --mount, but first put a btrfs filesystem
+#                                  on the drive. ERASES THE WHOLE DISK the drive
+#                                  is on, every partition included.
 #   ./drive-backup.sh --enable-schedule
 #   ./drive-backup.sh --disable-schedule
 #                                  Turn the daily backup and weekly verify
@@ -81,6 +82,7 @@ mysql_defaults_file=""
 # Set by mount_device() and format_device() when they succeed
 mounted_at=""
 formatted_device=""
+formatted_stale_specs=""
 
 # Exit handler used to ensure the exit message AJAX expects is found, whilst summarising if errors were found
 # This also picks up the natural exit when reaching end of script
@@ -301,14 +303,64 @@ tsv_safe() {
 # The disks the running system is using. Anything on one of these is never
 # offered as a backup drive and never formatted, so a mistake here cannot reach
 # the SD card the system boots from.
+#
+# Every mounted filesystem and every active swap device counts. Each is walked
+# down to the disk it ultimately sits on, through partitions, LVM and device
+# mapper alike, because the format action erases whole disks.
 system_disks() {
     local src disk
-    findmnt -rno SOURCE | sed 's/\[.*\]//' | sort -u | while read -r src; do
+    {
+        findmnt -rno SOURCE | sed 's/\[.*\]//'
+        awk 'NR>1 && $1 ~ /^\/dev\// {print $1}' /proc/swaps 2>/dev/null
+    } | sort -u | while read -r src; do
         case "${src}" in /dev/*) ;; *) continue ;; esac
-        disk=$(lsblk -no PKNAME "${src}" 2>/dev/null | head -1)
-        [ -z "${disk}" ] && disk=$(basename "${src}")
+        # /dev/root and the like are not real device nodes, find the device by
+        # its major:minor number instead
+        if [ ! -b "${src}" ]; then
+            src="/dev/block/$(findmnt -rno MAJ:MIN --source "${src}" 2>/dev/null | head -1)"
+            [ -b "${src}" ] || continue
+        fi
+        # The inverse tree ends at the disk itself
+        disk=$(lsblk -srno NAME "${src}" 2>/dev/null | tail -1)
+        [ -z "${disk}" ] && disk=$(basename "$(readlink -f "${src}")")
         echo "${disk}"
     done | sort -u
+}
+
+# The disk a partition sits on, or the device itself if it is a whole disk
+disk_of() {
+    local dev="$1" parent
+    parent=$(lsblk_field "${dev}" PKNAME)
+    if [ -n "${parent}" ]; then
+        echo "/dev/${parent}"
+    else
+        readlink -f "${dev}"
+    fi
+}
+
+# Everything found on a disk, for the person about to erase it: one entry per
+# partition with its filesystem, size and label, or the disk itself if it has
+# no partition table. Reported alongside each drive in --discover-devices so
+# the interface can say what the format action would destroy.
+disk_contents() {
+    local disk="$1" node fstype label size_b out="" item
+    local nodes
+    nodes=$(lsblk -pnro NAME "${disk}" 2>/dev/null)
+    # With partitions, describe those and not the disk that holds them
+    if [ "$(printf '%s\n' "${nodes}" | wc -l)" -gt 1 ]; then
+        nodes=$(printf '%s\n' "${nodes}" | sed '1d')
+    fi
+    while read -r node; do
+        [ -n "${node}" ] || continue
+        fstype=$(lsblk_field "${node}" FSTYPE)
+        label=$(tsv_safe "$(lsblk_field "${node}" LABEL)" | tr -d ';')
+        size_b=$(lsblk -bdno SIZE "${node}" 2>/dev/null | head -1)
+        item="$(basename "${node}") ($(human_bytes "${size_b:-0}"), ${fstype:-no filesystem}"
+        [ -n "${label}" ] && item="${item}, ${label}"
+        item="${item})"
+        out="${out:+${out}; }${item}"
+    done <<< "${nodes}"
+    printf '%s' "${out}"
 }
 
 # A name for a drive that survives unplugging and replugging it. Kernel names
@@ -355,18 +407,26 @@ device_is_mounted() {
 
 # Enumerate attached drives that are not mounted, one per line as
 #   id<TAB>device<TAB>size_mb<TAB>fstype<TAB>label<TAB>model<TAB>kind<TAB>state
+#     <TAB>disk<TAB>disk_size_mb<TAB>disk_contents
 #
 # state is one of:
 #   available     has a filesystem that can be mounted and used as it is
 #   infstab       already has an /etc/fstab entry, so it is configured but not
 #                 mounted: the drive was unplugged, or the entry is wrong
 #   nofilesystem  nothing on it to mount, it has to be formatted first
+#   nomedia       a card reader with no card in it. Listed so the interface can
+#                 say so; it cannot be mounted or formatted
+#
+# The last three columns describe the whole disk the device sits on, which is
+# what --format-mount erases: a used SD card carries a boot partition and a
+# root partition, and formatting one of them would leave a mixed card. The
+# interface shows disk_contents to whoever is about to confirm the erase.
 #
 # This is the authority on which drives may be mounted or formatted, in the same
 # way discover_destinations() is the authority on which may be selected.
 discover_devices() {
     local sys_disks dev kname type fstype id spec label model size_b size_mb
-    local parent ro kind state children
+    local parent ro kind state children disk disk_size_b disk_size_mb
 
     sys_disks=" $(system_disks | tr '\n' ' ') "
 
@@ -406,9 +466,16 @@ discover_devices() {
 
         size_b=$(lsblk -bdno SIZE "${dev}" 2>/dev/null | head -1)
         size_mb=$(( ${size_b:-0} / 1048576 ))
-        # Below this it is a boot or recovery partition rather than a backup
-        # drive, and offering it would only be a way to pick the wrong thing
-        [ "${size_mb}" -lt 512 ] && continue
+        if [ "${size_mb}" -eq 0 ] && [ "${type}" == "disk" ] && [ "$(lsblk_field "${dev}" RM)" == "1" ]; then
+            # A card reader with no card in it: a removable disk of size zero.
+            # Reported so the interface can say the reader is there but empty,
+            # rather than leaving the user wondering why nothing was found.
+            state="nomedia"
+        elif [ "${size_mb}" -lt 512 ]; then
+            # Below this it is a boot or recovery partition rather than a backup
+            # drive, and offering it would only be a way to pick the wrong thing
+            continue
+        fi
 
         id=$(stable_id "${dev}")
         if [ "${state}" == "available" ]; then
@@ -427,9 +494,14 @@ discover_devices() {
         # A partition carries no model of its own, it belongs to the disk
         [ -z "${model}" ] && [ -n "${parent}" ] && model=$(lsblk_field "/dev/${parent}" MODEL)
 
-        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        disk="/dev/${parent}"
+        disk_size_b=$(lsblk -bdno SIZE "${disk}" 2>/dev/null | head -1)
+        disk_size_mb=$(( ${disk_size_b:-0} / 1048576 ))
+
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
             "${id}" "${dev}" "${size_mb}" "${fstype}" \
-            "$(tsv_safe "${label}")" "$(tsv_safe "${model}")" "${kind}" "${state}"
+            "$(tsv_safe "${label}")" "$(tsv_safe "${model}")" "${kind}" "${state}" \
+            "${disk}" "${disk_size_mb}" "$(disk_contents "${disk}" | tr -d '\000-\037' | cut -c1-512)"
 
     done < <(lsblk -pnro NAME 2>/dev/null)
 
@@ -549,41 +621,132 @@ choose_mountpoint() {
     return 1
 }
 
-# Put a filesystem on a drive that has none. Destructive, and reached only from
-# --format-mount with --confirm-erase, on a drive discover_devices() reported as
-# nofilesystem, which by construction is not on any disk the system is using.
+# Remove /etc/fstab entries whose first column is one of the given specs, one
+# per line. Used after a format, when the entries that named the old
+# filesystems on the disk can no longer match anything. A comment line this
+# module wrote above an entry goes with it. Same backup and atomic write as
+# adding an entry.
+fstab_remove_specs() {
+    local specs="$1" backup tmp
+    [ -n "${specs}" ] || return 0
+    [ -f /etc/fstab ] || return 0
+
+    echo "Removing /etc/fstab entries for the filesystems that were on the disk:"
+    printf '%s\n' "${specs}" | sed '/^$/d; s/^/    /'
+
+    backup="/etc/fstab.emoncms-backup.$(date +%Y%m%d%H%M%S).bak"
+    as_root cp -a /etc/fstab "${backup}" || return 1
+    echo "Previous /etc/fstab saved as ${backup}"
+
+    tmp=$(mktemp) || return 1
+    awk -v specs="${specs}" '
+        BEGIN { n = split(specs, a, "\n"); for (i = 1; i <= n; i++) if (a[i] != "") drop[tolower(a[i])] = 1 }
+        /^# Added by the Emoncms backup module/ { held = $0; have = 1; next }
+        !/^[[:space:]]*#/ && NF >= 2 && (tolower($1) in drop) { have = 0; next }
+        { if (have) { print held; have = 0 } print }
+        END { if (have) print held }' /etc/fstab > "${tmp}" || { rm -f "${tmp}"; return 1; }
+    if ! as_root cp "${tmp}" /etc/fstab; then
+        rm -f "${tmp}"
+        echo "ERROR: could not write /etc/fstab"
+        return 1
+    fi
+    rm -f "${tmp}"
+    as_root chmod 644 /etc/fstab
+    as_root systemctl daemon-reload 2>/dev/null || true
+    return 0
+}
+
+# Put a btrfs filesystem on a drive. Destructive: the WHOLE DISK the device sits
+# on is erased, every partition on it included. Reached only from --format-mount
+# with --confirm-erase, on a drive discover_devices() reported, which by
+# construction is not on any disk the system is using. That is checked again
+# here, on the disk itself, immediately before anything is written.
+#
+# btrfs rather than ext4 because a backup drive is exactly where it pays:
+# every block is checksummed so bit rot on an SD card is detected instead of
+# restored, and feed data compresses by about 80% with compress=zstd.
+#
+# Sets formatted_device to the new partition and formatted_stale_specs to the
+# /etc/fstab specs that named filesystems that no longer exist.
 format_device() {
-    local dev="$1" type part
+    local dev="$1" disk node part spec stale=""
 
-    type=$(lsblk_field "${dev}" TYPE)
-
-    if [ "${type}" == "disk" ]; then
-        if ! command -v parted > /dev/null; then
-            echo "ERROR: parted is not installed, cannot partition ${dev}"
-            echo "Install it with: sudo apt-get install -y parted"
-            return 1
-        fi
-        echo "Creating a GPT partition table and a single partition on ${dev}"
-        as_root parted -s "${dev}" mklabel gpt mkpart primary ext4 1MiB 100% || return 1
-        as_root udevadm settle || true
-        sleep 2
-
-        part=$(lsblk -pnro NAME "${dev}" 2>/dev/null | sed -n '2p')
-        if [ -z "${part}" ] || [ ! -b "${part}" ]; then
-            echo "ERROR: no partition appeared on ${dev} after partitioning"
-            return 1
-        fi
-        echo "Created ${part}"
-        dev="${part}"
+    disk=$(disk_of "${dev}")
+    if [ -z "${disk}" ] || [ ! -b "${disk}" ]; then
+        echo "ERROR: cannot find the disk that ${dev} is on"
+        return 1
     fi
 
-    echo "Creating an ext4 filesystem on ${dev}"
-    # -m 0 leaves no blocks reserved for root: this is a backup drive, not a
-    # system disk, and 5% of it is worth more as backup space
-    as_root mkfs.ext4 -F -m 0 -L emoncms-backup "${dev}" || return 1
+    # The disk is what gets erased, so it is the disk that has to be clear of
+    # anything the system is using, whatever discover_devices() said moments ago
+    case " $(system_disks | tr '\n' ' ') " in
+        *" $(basename "${disk}") "*)
+            echo "ERROR: ${disk} holds a filesystem or swap the system is using, refusing to erase it"
+            return 1
+            ;;
+    esac
+    if device_is_mounted "${disk}"; then
+        echo "ERROR: something on ${disk} is mounted, refusing to erase it"
+        return 1
+    fi
+
+    if ! command -v parted > /dev/null; then
+        echo "ERROR: parted is not installed, cannot partition ${disk}"
+        echo "Install it with: sudo apt-get install -y parted"
+        return 1
+    fi
+    if ! command -v mkfs.btrfs > /dev/null; then
+        echo "ERROR: mkfs.btrfs is not installed, cannot format ${disk}"
+        echo "Install it with: sudo apt-get install -y btrfs-progs"
+        return 1
+    fi
+    if ! grep -qw btrfs /proc/filesystems && ! as_root modprobe btrfs 2>/dev/null; then
+        echo "ERROR: this kernel has no btrfs support, cannot use ${disk}"
+        return 1
+    fi
+
+    echo "Disk to erase: ${disk} ($(lsblk_field "${disk}" MODEL), $(human_bytes "$(lsblk -bdno SIZE "${disk}" 2>/dev/null | head -1)"))"
+    echo "Currently holding: $(disk_contents "${disk}")"
+
+    # /etc/fstab entries for the filesystems about to be destroyed would never
+    # match again. Collect them now, while the filesystems still have UUIDs.
+    while read -r node; do
+        [ -n "${node}" ] || continue
+        spec=$(fstab_spec_for "${node}" "$(stable_id "${node}")" || true)
+        [ -n "${spec}" ] && fstab_has_spec "${spec}" && stale="${stale}${spec}"$'\n'
+    done < <(lsblk -pnro NAME "${disk}" 2>/dev/null)
+
+    # Wipe the filesystem signatures inside each partition before the partition
+    # table, so that nothing can be recognised at its old offset afterwards
+    echo "Removing every filesystem signature on ${disk}"
+    while read -r node; do
+        [ -n "${node}" ] || continue
+        [ "${node}" == "${disk}" ] && continue
+        as_root wipefs -a "${node}" > /dev/null 2>&1 || true
+    done < <(lsblk -pnro NAME "${disk}" 2>/dev/null | tac)
+    as_root wipefs -a "${disk}" > /dev/null || return 1
+
+    echo "Creating a GPT partition table and a single partition on ${disk}"
+    as_root parted -s "${disk}" mklabel gpt mkpart primary btrfs 1MiB 100% || return 1
+    as_root udevadm settle || true
+    sleep 2
+
+    part=$(lsblk -pnro NAME "${disk}" 2>/dev/null | sed -n '2p')
+    if [ -z "${part}" ] || [ ! -b "${part}" ]; then
+        echo "ERROR: no partition appeared on ${disk} after partitioning"
+        return 1
+    fi
+    echo "Created ${part}"
+
+    echo "Creating a btrfs filesystem on ${part}"
+    # Single device, so mkfs.btrfs keeps two copies of the metadata by default,
+    # which is worth having on flash. Data is compressed at mount time instead,
+    # see fstab_options_for().
+    as_root mkfs.btrfs -f -L emoncms-backup "${part}" || return 1
     as_root udevadm settle || true
 
-    formatted_device="${dev}"
+    formatted_device="${part}"
+    formatted_stale_specs="${stale}"
     return 0
 }
 
@@ -672,30 +835,37 @@ mount_device() {
     echo "Filesystem: ${fstype:-none}"
     echo "State: ${state}"
 
-    case "${fstype}" in
-        vfat|msdos)
-            echo "NOTE: FAT cannot hold a file larger than 4 GB and cannot store unix"
-            echo "      ownership. Feed files are well below 4 GB and drive-restore.sh sets"
-            echo "      ownership on the way back in, so this works, but an ext4 drive is a"
-            echo "      better long term choice, and btrfs better still."
-            ;;
-    esac
+    if [ "${state}" == "nomedia" ]; then
+        echo "ERROR: ${dev} is a card reader with no card in it"
+        return 1
+    fi
+
+    if [ "${do_format}" != "true" ]; then
+        case "${fstype}" in
+            vfat|msdos)
+                echo "NOTE: FAT cannot hold a file larger than 4 GB and cannot store unix"
+                echo "      ownership. Feed files are well below 4 GB and drive-restore.sh sets"
+                echo "      ownership on the way back in, so this works, but a drive formatted"
+                echo "      as btrfs is a better long term choice."
+                ;;
+        esac
+    fi
 
     if [ "${do_format}" == "true" ]; then
-        if [ "${state}" != "nofilesystem" ]; then
-            echo "ERROR: ${dev} already has a ${fstype} filesystem, refusing to format it"
-            echo "Only a drive with no filesystem at all is formatted by this action."
-            return 1
-        fi
         echo ""
-        echo "--- Formatting ${dev}, everything on this drive is being erased ---"
+        echo "--- Formatting the disk that holds ${dev}, everything on it is being erased ---"
         formatted_device=""
+        formatted_stale_specs=""
         format_device "${dev}" || return 1
         dev="${formatted_device}"
-        fstype="ext4"
-        # The by-id name of the partition just created, not of the whole disk it
-        # sits on, which is what was scanned and confirmed
+        fstype="btrfs"
+        # The by-id name of the partition just created, not of the device that
+        # was scanned and confirmed, which may no longer exist
         id=$(stable_id "${dev}")
+        # Entries for the filesystems that were on the disk are now stale. Take
+        # them out before looking for one to reuse, or a stale entry with the
+        # wrong filesystem type would be found and used.
+        fstab_remove_specs "${formatted_stale_specs}" || return 1
     elif [ "${state}" == "nofilesystem" ]; then
         echo "ERROR: ${dev} has no filesystem, so there is nothing to mount"
         echo "Format it first, or use a drive that already has a filesystem."

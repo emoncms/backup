@@ -94,10 +94,15 @@ if ! command -v rsync > /dev/null; then
     sudo apt-get install -y rsync
 fi
 
-# drive-backup.sh --format-mount partitions a blank drive with parted
+# drive-backup.sh --format-mount partitions a drive with parted and formats it
+# as btrfs, which needs btrfs-progs
 if ! command -v parted > /dev/null; then
-    echo "- installing parted (required to format a blank backup drive)"
+    echo "- installing parted (required to format a backup drive)"
     sudo apt-get install -y parted
+fi
+if ! command -v mkfs.btrfs > /dev/null; then
+    echo "- installing btrfs-progs (required to format a backup drive as btrfs)"
+    sudo apt-get install -y btrfs-progs
 fi
 
 # ---------------------------------------------------------------

@@ -79,10 +79,13 @@
         "ran_ok"          => tr("Complete"),
         "ran_failed"      => tr("Failed"),
         "ran_skipped"     => tr("Nothing to do"),
+        "not_started"     => tr("Not started"),
+        "not_started_log" => tr("No log: the script was never started. The previous run's log has been left as it was."),
         "schedule_on"     => tr("Turning on daily backup"),
         "schedule_off"    => tr("Turning off daily backup"),
         "free_suffix"     => tr("free"),
         "no_filesystem"   => tr("no filesystem"),
+        "no_media"        => tr("card reader, no card inserted"),
         "scan"            => tr("Scan for drives"),
         "scanning"        => tr("Scanning"),
         "setting_up"      => tr("Setting up drive"),
@@ -465,6 +468,7 @@ body { background-color: var(--bg-body); }
                 </p>
                 <p class="muted" v-if="choices_needing_setup">
                     <?php echo tr("A drive that is not set up yet will be mounted, added to /etc/fstab so it comes back after a reboot, and used from then on."); ?>
+                    <?php echo tr("Any drive can instead be erased and formatted as btrfs, which compresses feed data, checks every block it reads back and can keep dated copies of the backup."); ?>
                 </p>
             </div>
 
@@ -486,10 +490,15 @@ body { background-color: var(--bg-body); }
                                     :disabled="busy" @click="pick(c.drive)">
                                 {{ c.drive.initialised ? T.use_again : T.use_this_drive }}
                             </button>
-                            <button class="btn btn-small btn-primary" v-else-if="c.device.state != 'nofilesystem'"
-                                    :disabled="busy" @click="ask_setup(c.device)"><?php echo tr("Set up this drive"); ?></button>
+                            <span class="muted" v-else-if="c.device.state == 'nomedia'"><?php echo tr("Insert a card, then scan again"); ?></span>
+                            <template v-else-if="c.device.state != 'nofilesystem'">
+                                <button class="btn btn-small btn-primary"
+                                        :disabled="busy" @click="ask_setup(c.device, 'mount')"><?php echo tr("Set up this drive"); ?></button>
+                                <button class="btn btn-small"
+                                        :disabled="busy" @click="ask_setup(c.device, 'format')"><?php echo tr("Erase and format"); ?></button>
+                            </template>
                             <button class="btn btn-small btn-danger" v-else
-                                    :disabled="busy" @click="ask_setup(c.device)"><?php echo tr("Format and set up"); ?></button>
+                                    :disabled="busy" @click="ask_setup(c.device, 'format')"><?php echo tr("Format and set up"); ?></button>
                         </td>
                     </tr>
 
@@ -497,7 +506,7 @@ body { background-color: var(--bg-body); }
                          asking a yes/no question about the word "mount" -->
                     <tr v-if="!c.mounted && confirm_id == c.device.id">
                         <td colspan="4">
-                            <div v-if="c.device.state != 'nofilesystem'">
+                            <div v-if="confirm_mode == 'mount'">
                                 <div class="bk-notice">
                                     <p><b><?php echo tr("Set this drive up for backups?"); ?></b></p>
                                     <ul>
@@ -517,11 +526,16 @@ body { background-color: var(--bg-body); }
 
                             <div v-else>
                                 <div class="bk-notice danger">
-                                    <p><b><?php echo tr("This erases everything on the drive."); ?></b></p>
-                                    <p>{{ c.name }} (<span class="mono">{{ c.device.device }}</span>, {{ gb(c.device.size_mb) }})
-                                       <?php echo tr("has no filesystem on it. Setting it up writes a new partition table and an ext4 filesystem, destroying anything already there. This cannot be undone."); ?></p>
+                                    <p><b><?php echo tr("This erases the whole drive."); ?></b></p>
+                                    <p>{{ c.device.model || c.name }} (<span class="mono">{{ c.device.disk }}</span>, {{ gb(c.device.disk_size_mb) }})
+                                       <span v-if="c.device.disk_contents"><?php echo tr("currently holds:"); ?> <span class="mono">{{ c.device.disk_contents }}</span>.</span>
+                                       <span v-else><?php echo tr("has no filesystem on it."); ?></span></p>
+                                    <p><?php echo tr("Setting it up writes a new partition table and a btrfs filesystem, destroying everything already there, every partition included. This cannot be undone."); ?></p>
+                                    <p v-if="looks_like_backup(c.device)"><b><?php echo tr("This looks like an existing Emoncms backup drive."); ?></b>
+                                       <?php echo tr("The backup on it will be lost. To carry on using it as it is, choose Set up this drive instead."); ?></p>
                                     <p><?php echo tr("Check this is the drive you mean. Emoncms will not offer a drive the system runs from, but it cannot tell whether this one holds something you want."); ?></p>
                                 </div>
+                                <p class="muted"><?php echo tr("btrfs compresses feed data as it is written, checks every block it reads back so damage on the drive is detected, and can keep dated copies of the backup."); ?></p>
                                 <p><?php echo tr("Type ERASE to confirm:"); ?></p>
                                 <input type="text" v-model="erase_text" placeholder="ERASE">
                                 <div class="bk-actions">
@@ -699,9 +713,15 @@ body { background-color: var(--bg-body); }
             <span class="bk-badge ok" v-else-if="log_result == 'ok'">&check; {{ T.ran_ok }}</span>
             <span class="bk-badge danger" v-else-if="log_result == 'error'">{{ T.ran_failed }}</span>
             <span class="bk-badge grey" v-else-if="log_result == 'skipped'">{{ T.ran_skipped }}</span>
+            <span class="bk-badge danger" v-else-if="log_result == 'notstarted'">{{ T.not_started }}</span>
             <span class="bk-toggle">{{ show_log ? "\u25BE " + T.hide_log : "\u25B8 " + T.show_log }}</span>
         </div>
         <div class="card-body" v-show="show_log">
+            <div class="bk-notice danger" v-if="log_result == 'notstarted'">
+                <b><?php echo tr("service-runner did not start this action."); ?></b>
+                <?php echo tr("It only runs actions on its whitelist, and the backup drive actions were added to Emoncms core recently. Update Emoncms, then restart service-runner:"); ?>
+                <span class="mono">sudo systemctl restart service-runner</span>
+            </div>
             <pre class="bk-log" ref="log">{{ log_text }}</pre>
         </div>
     </div>
@@ -729,6 +749,8 @@ Vue.createApp({
         scanned: false,
         scanning: false,
         confirm_id: "",
+        // "mount" to use a drive as it is, "format" to erase it first
+        confirm_mode: "mount",
         erase_text: "",
         change_drive: false,
         busy: false,
@@ -743,6 +765,9 @@ Vue.createApp({
         log_timer: false,
         log_last: "",
         log_stall: 0,
+        // The log as it was before the current action was requested, until
+        // the log changes. null once the script has visibly started.
+        log_before: null,
         restore_sql: "",
         restore_delete: false,
         restore_confirm: false,
@@ -781,14 +806,15 @@ Vue.createApp({
             });
 
             this.devices.forEach(function(d) {
+                var empty = (d.state == "nomedia");
                 list.push({
                     key: "d:" + d.id,
                     mounted: false,
                     device: d,
                     name: self.device_name(d),
-                    detail: d.device + " \u00b7 " + (d.fstype ? d.fstype : self.T.no_filesystem),
+                    detail: d.device + " \u00b7 " + (empty ? self.T.no_media : (d.fstype ? d.fstype : self.T.no_filesystem)),
                     kind: d.kind,
-                    space: self.gb(d.size_mb)
+                    space: empty ? "\u2013" : self.gb(d.size_mb)
                 });
             });
 
@@ -797,7 +823,7 @@ Vue.createApp({
 
         // Whether to explain what setting a drive up will do
         choices_needing_setup: function() {
-            return this.choices.some(function(c) { return !c.mounted; });
+            return this.choices.some(function(c) { return !c.mounted && c.device.state != "nomedia"; });
         },
 
         used_percent: function() {
@@ -941,12 +967,23 @@ Vue.createApp({
             return d.device;
         },
 
-        ask_setup: function(d) {
-            this.confirm_id = (this.confirm_id == d.id ? "" : d.id);
+        // Open the confirmation for a drive, or close it if the same one is
+        // pressed again. mode is "mount" or "format".
+        ask_setup: function(d, mode) {
+            var same = (this.confirm_id == d.id && this.confirm_mode == mode);
+            this.confirm_id = same ? "" : d.id;
+            this.confirm_mode = mode;
             this.erase_text = "";
         },
 
         cancel_setup: function() { this.confirm_id = ""; this.erase_text = ""; },
+
+        // Whether a drive about to be erased was probably set up by this
+        // module before. Only the label can be seen without mounting it.
+        looks_like_backup: function(d) {
+            var text = (d.label || "") + " " + (d.disk_contents || "");
+            return /emoncms-backup/i.test(text);
+        },
 
         do_mount: function(d) {
             this.cancel_setup();
@@ -1003,11 +1040,20 @@ Vue.createApp({
             self.log_last = "";
             self.log_stall = 0;
             self.log_result = "";
-            $.ajax({url: backup_path + "backup/" + action, dataType: "text", success: function(result) {
-                self.log_text = result;
-                clearInterval(self.log_timer);
-                self.log_timer = setInterval(self.poll_log, 1000);
-            }});
+            self.log_before = null;
+            // The log file is only rewritten once service-runner actually
+            // starts the script. Remember what it holds now, so that a log
+            // left by an earlier run is not mistaken for the result of this
+            // one when service-runner rejects the action and nothing runs.
+            $.ajax({url: backup_path + "backup/" + log_action, dataType: "text",
+                complete: function(xhr) {
+                    self.log_before = (xhr.status == 200) ? xhr.responseText : "";
+                    $.ajax({url: backup_path + "backup/" + action, dataType: "text", success: function(result) {
+                        self.log_text = result;
+                        clearInterval(self.log_timer);
+                        self.log_timer = setInterval(self.poll_log, 1000);
+                    }});
+                }});
         },
 
         // Completion markers printed by the scripts. Amend there if changed here.
@@ -1043,6 +1089,27 @@ Vue.createApp({
             var self = this;
             $.ajax({url: backup_path + "backup/" + self.log_action, dataType: "text", success: function(result) {
                 if (result == "backup module requires admin access") { location.replace("/"); return; }
+
+                // Still the log from before this action was requested, so the
+                // script has not started. service-runner starts a script within
+                // a second or so of it being queued; if the log has not changed
+                // after 15 seconds it has rejected the action, which it does
+                // silently when the action is missing from its whitelist.
+                if (self.log_before !== null) {
+                    if (result === self.log_before) {
+                        self.log_stall++;
+                        if (self.log_stall > 15) {
+                            clearInterval(self.log_timer);
+                            self.busy = false;
+                            self.log_result = "notstarted";
+                            self.log_text = self.T.not_started_log;
+                        }
+                        return;
+                    }
+                    self.log_before = null;
+                    self.log_stall = 0;
+                }
+
                 self.log_text = result;
                 self.$nextTick(function() {
                     var el = self.$refs.log;

@@ -84,7 +84,12 @@ function backup_discover_devices($parsed_ini)
             "model"   => $f[5],
             "kind"    => $f[6],
             // available | infstab | nofilesystem, see discover_devices()
-            "state"   => $f[7]
+            "state"   => $f[7],
+            // The whole disk this device sits on, which is what formatting
+            // erases, and a description of everything currently on it
+            "disk"          => isset($f[8]) ? $f[8] : $f[1],
+            "disk_size_mb"  => isset($f[9]) ? (int) $f[9] : (int) $f[2],
+            "disk_contents" => isset($f[10]) ? $f[10] : ""
         );
     }
     return $devices;
@@ -338,7 +343,7 @@ function backup_controller()
         foreach (backup_discover_devices($parsed_ini) as $device) {
             // A drive with no filesystem has nothing to mount. It needs
             // driveformatmount, which asks the user a much bigger question.
-            if ($device['id'] === $id && $device['state'] !== "nofilesystem") $found = true;
+            if ($device['id'] === $id && $device['state'] !== "nofilesystem" && $device['state'] !== "nomedia") $found = true;
         }
         if (!$found) {
             return array('content' => tr("That drive is not available to set up"));
@@ -348,9 +353,10 @@ function backup_controller()
         $redis->rpush("service-runner", json_encode(["run" => "backup-drive-mount", "args" => ["--mount", $id], "log" => "drivebackup"]));
     }
 
-    // The same, but formatting the drive first. This erases it, so it is a
-    // separate action, only ever offered for a drive with no filesystem at all,
-    // and the browser has to send the confirmation word as well.
+    // The same, but formatting the drive as btrfs first. This erases the whole
+    // disk the drive is on, so it is a separate action and the browser has to
+    // send the confirmation word as well. Any drive in the scan may be chosen:
+    // the scan never lists anything on a disk the system is using.
     if ($route->action == 'driveformatmount') {
         $route->format = "text";
 
@@ -362,7 +368,7 @@ function backup_controller()
 
         $found = false;
         foreach (backup_discover_devices($parsed_ini) as $device) {
-            if ($device['id'] === $id && $device['state'] === "nofilesystem") $found = true;
+            if ($device['id'] === $id && $device['state'] !== "nomedia") $found = true;
         }
         if (!$found) {
             return array('content' => tr("That drive is not available to format"));

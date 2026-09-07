@@ -76,9 +76,12 @@ no need to stop `feedwriter`.
 The quickest route is the **Backup** tab of the backup module in Emoncms: plug
 the drive in, press **Scan for drives**, and it offers to set up what it finds.
 Confirming mounts the drive, adds it to `/etc/fstab` so it is mounted again after
-a reboot, selects it as the backup destination and prepares it. A drive with no
-filesystem on it is offered separately, with a typed confirmation, and is
-partitioned and formatted as ext4 first.
+a reboot, selects it as the backup destination and prepares it. Any drive can
+instead be erased and formatted as btrfs first, behind a typed confirmation that
+lists everything currently on the disk; a drive with no filesystem on it is
+offered that way only. btrfs is the recommended format for a backup drive: it
+checksums every block, so damage on an SD card is detected rather than
+restored, and it compresses feed data by about 80%.
 
 Only drives that are plugged in and not already mounted are offered, and never
 anything on a disk the running system is using, so the SD card cannot be picked
@@ -125,7 +128,7 @@ Or set it by hand in `config.cfg` and prepare it yourself:
 
     ./drive-backup.sh --discover-devices        # list drives that are not mounted
     ./drive-backup.sh --mount <id>              # mount one, add it to fstab, use it
-    ./drive-backup.sh --format-mount <id> --confirm-erase   # ERASES the drive first
+    ./drive-backup.sh --format-mount <id> --confirm-erase   # ERASES the whole disk, formats btrfs
 
     ./drive-backup.sh --enable-schedule    # turn the daily and weekly timers on
     ./drive-backup.sh --disable-schedule   # and off again
@@ -251,12 +254,20 @@ Confirming runs `--mount <id>`, which:
 5. hands over to `--set-path`, so selecting and preparing the destination goes
    through the same code as choosing an already mounted drive
 
-`--format-mount <id> --confirm-erase` additionally writes a GPT label, a single
-partition and an ext4 filesystem labelled `emoncms-backup`, with `-m 0` so none
-of the drive is reserved for root. It refuses to run on a device that already
-has a filesystem, so it can only ever erase a drive that appeared as
-`nofilesystem` in the scan. The interface asks for `ERASE` to be typed and sends
-that word with the request; the module checks it before queueing anything.
+`--format-mount <id> --confirm-erase` additionally erases the **whole disk** the
+chosen device sits on and writes a GPT label, a single partition and a btrfs
+filesystem labelled `emoncms-backup`. The whole disk rather than one partition
+because a used SD card carries a boot partition and a root partition, and
+formatting only one of them would leave a mixed card. `--discover-devices`
+reports the disk and everything on it in its last three columns, and the
+interface shows that list in the confirmation. Before writing anything the
+script checks again that nothing on the disk is mounted or in use as swap, and
+`mkfs.btrfs` itself refuses a mounted device. `/etc/fstab` entries that named
+the old filesystems are removed, with the usual backup, so they do not
+accumulate. The interface asks for `ERASE` to be typed and sends that word with
+the request; the module checks it before queueing anything.
+
+Formatting needs `parted` and `btrfs-progs`, which `install.sh` installs.
 
 #### Running as root
 
@@ -280,7 +291,12 @@ re-checks that the mountpoint is in that list before accepting it, so choosing a
 destination can never point a root process at an arbitrary directory. The tab needs `service-runner` to be running, and the
 `backup-drive-sync`, `backup-drive-verify`, `backup-drive-setpath`,
 `backup-drive-mount`, `backup-drive-schedule` and `backup-drive-restore` actions to
-be present in its whitelist (they are in Emoncms core).
+be present in its whitelist. They are in Emoncms core from the `backup_support`
+branch onwards; `service-runner` reads the whitelist once at startup, so it has
+to be restarted after Emoncms is updated. An action that is not on the whitelist
+is rejected without any output. The interface notices when the log has not
+changed 15 seconds after a request and reports the action as not started,
+rather than showing the previous run's log as if it were the result.
 
 ### Layout on the drive
 
@@ -356,8 +372,8 @@ exactly the cost this design exists to avoid. A copy on write filesystem gives
 both for free, because compression happens per extent below the append and a
 snapshot costs only the delta. Formatting the backup drive as btrfs and mounting
 it with `compress=zstd` is worth doing: measured on real PHPFina data, feed files
-compress by roughly 80%. The interface reports which of these the chosen drive
-supports.
+compress by roughly 80%. This is what the interface's erase and format action
+does. The interface reports which of these the chosen drive supports.
 
 **Verify cost.** Verify reads every byte on both sides. Over gigabit ethernet a
 3 GB dataset is around half a minute of transfer; over wifi or 100 Mbit it is
