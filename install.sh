@@ -32,6 +32,16 @@ else
     if [ -d $emonhub_directory ]; then echo "  $emonhub_directory valid"; else echo "  $emonhub_directory invalid"; exit 0; fi
 fi
 
+# Backing up to an attached drive runs as root and can mount and format drives,
+# so it is only switched on where a USB backup drive is the normal case: a
+# Raspberry Pi. Anywhere else it is a deliberate choice, made by hand in
+# config.cfg, see default.config.cfg.
+if grep -qi "raspberry pi" /proc/device-tree/model 2>/dev/null; then
+    drive_backup_default="yes"
+else
+    drive_backup_default="no"
+fi
+
 # Creating backup module config.cfg file
 if [ ! -f config.cfg ]; then
     echo "- Copying default.config.cfg to config.cfg"
@@ -45,8 +55,18 @@ if [ ! -f config.cfg ]; then
     sed -i "s~EMONHUB_CONFIG_PATH~/etc/emonhub~" config.cfg
     sed -i "s~EMONHUB_SPECIMEN_CONFIG~$emonhub_directory/conf~" config.cfg
     sed -i "s~BACKUP_SOURCE_PATH~$emoncms_datadir/backup/uploads~" config.cfg
+    sed -i "s~^drive_backup_enabled=.*~drive_backup_enabled=\"$drive_backup_default\"~" config.cfg
+    echo "- drive_backup_enabled set to \"$drive_backup_default\""
 else 
-    echo "- config.cfg already exists, left unmodified"
+    echo "- config.cfg already exists, left as it is"
+    # An install from before the switch existed. Add it with the default a fresh
+    # install would get, so that a Raspberry Pi already backing up to a drive
+    # carries on doing so after the update.
+    if ! grep -q "^drive_backup_enabled=" config.cfg; then
+        echo "- adding drive_backup_enabled=\"$drive_backup_default\" to config.cfg"
+        printf '\n# Whether backing up to an attached drive can be used, see default.config.cfg\ndrive_backup_enabled="%s"\n' \
+            "$drive_backup_default" >> config.cfg
+    fi
 fi
 source config.cfg
 
@@ -87,6 +107,18 @@ if [ ! -d $backup_location/uploads ]; then
     sudo mkdir $backup_location/uploads
     sudo chown www-data:$user $backup_location/uploads -R
 fi
+
+# ---------------------------------------------------------------
+# Backup to an attached drive
+#
+# Nothing below is installed unless it is switched on in config.cfg: no packages
+# it alone needs, and no systemd units that would run drive-backup.sh as root.
+# ---------------------------------------------------------------
+if [ "$drive_backup_enabled" != "yes" ]; then
+    echo "- backup to an attached drive is not enabled (drive_backup_enabled=\"no\" in config.cfg)"
+    echo "  Its timers and packages are not installed. To use it, set drive_backup_enabled=\"yes\""
+    echo "  in $backup_module_dir/config.cfg and run this script again."
+else
 
 # drive-backup.sh requires rsync
 if ! command -v rsync > /dev/null; then
@@ -133,6 +165,8 @@ else
     echo "    2. $backup_module_dir/drive-backup.sh --set-path <mountpoint>"
     echo "    3. sudo systemctl enable --now emoncms-drive-backup.timer emoncms-drive-backup-verify.timer"
 fi
+
+fi # drive_backup_enabled
 
 echo "- restarting apache"
 sudo service apache2 restart

@@ -49,6 +49,11 @@
 #   ./drive-backup.sh --disable-schedule
 #                                  Turn the daily backup and weekly verify
 #                                  systemd timers on or off
+#
+# Everything except --discover, --discover-devices and --disable-schedule needs
+# drive_backup_enabled="yes" in config.cfg. install.sh sets it on a Raspberry
+# Pi; on any other system it is off until set by hand, so that a root process
+# that mounts and formats drives cannot be reached where nobody wants it.
 
 # Set the shell to trigger errors when commands within a pipe have a non-zero return code
 set -o pipefail
@@ -1099,6 +1104,28 @@ if [ "${discover}" == "true" ]; then
 fi
 
 #-----------------------------------------------------------------------------------------------
+# Is the drive backup enabled at all?
+#
+# Checked here, before anything runs as root, and read from config.cfg as plain
+# text rather than by sourcing it: sourcing happens further down, in the copy of
+# this script that runs as root. config.cfg is not writable from the web
+# interface, so this is the one switch a compromised web tier cannot flip, and
+# it is what makes the service-runner whitelist entries for this script inert on
+# a system where the feature is not wanted.
+#
+# Turning the timers off is always allowed. Nothing else past the read only
+# queries above is.
+#-----------------------------------------------------------------------------------------------
+drive_backup_enabled=$(grep -m1 '^drive_backup_enabled=' "${config_location}" 2>/dev/null \
+    | cut -d= -f2- | tr -d "\"' " | tr 'A-Z' 'a-z' || true)
+if [ "${drive_backup_enabled}" != "yes" ] && [ "${schedule_action}" != "disable" ]; then
+    echo "=== Emoncms drive backup start ==="
+    echo "ERROR: backup to an attached drive is not enabled on this system."
+    echo "Set drive_backup_enabled=\"yes\" in ${config_location} to use it."
+    exit 1
+fi
+
+#-----------------------------------------------------------------------------------------------
 # Everything past this point needs root
 #
 # The systemd timers run this script as root. Started from the Emoncms interface
@@ -1155,6 +1182,7 @@ source "${config_location}"
 
 # Defaults for settings added by this script. config.cfg is not tracked in git and
 # is only generated on install, so an existing installation will not have them.
+: "${drive_backup_enabled:=no}"
 : "${drive_backup_path:=}"
 : "${drive_backup_retain_daily_sql:=7}"
 : "${drive_backup_retain_weekly_sql:=4}"

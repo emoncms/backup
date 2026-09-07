@@ -23,6 +23,9 @@
 #                                   backup, making the restore an exact mirror
 #   ./drive-restore.sh --yes          Do not ask to confirm. Required when not run
 #                                   from a terminal, as the Emoncms interface does.
+#
+# Needs drive_backup_enabled="yes" in config.cfg, the same switch that governs
+# drive-backup.sh. Off by default anywhere other than a Raspberry Pi.
 
 # Set the shell to trigger errors when commands within a pipe have a non-zero return code
 set -o pipefail
@@ -250,9 +253,22 @@ fi
 
 source "${config_location}"
 
+: "${drive_backup_enabled:=no}"
 : "${drive_backup_path:=}"
 : "${drive_backup_preserve_permissions:=auto}"
 : "${drive_backup_probe_seconds:=20}"
+
+# The same switch as drive-backup.sh. A restore overwrites the live database and
+# feed data, so it is refused on a system where the drive backup is not enabled,
+# whether it is asked for from the interface or from a shell.
+case "$(printf '%s' "${drive_backup_enabled}" | tr 'A-Z' 'a-z')" in
+    yes) ;;
+    *)
+        echo "ERROR: backup to an attached drive is not enabled on this system."
+        echo "Set drive_backup_enabled=\"yes\" in ${config_location} to use it."
+        exit 1
+        ;;
+esac
 
 # A destination chosen in the Emoncms interface is kept in its own small file
 # rather than in config.cfg, which is sourced as shell by this script running as

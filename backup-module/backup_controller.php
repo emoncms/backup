@@ -26,6 +26,9 @@ function backup_discover_drives($parsed_ini)
     if (!is_file($script)) $script = "/opt/emoncms/modules/backup/drive-backup.sh";
     if (!is_file($script)) return array();
 
+    // The script path comes from config.cfg, which the web interface cannot
+    // write, so this is not a way to run anything else. Nothing from the
+    // request goes on the command line.
     $lines = array();
     @exec(escapeshellarg($script)." --discover 2>/dev/null", $lines);
 
@@ -172,6 +175,16 @@ function backup_controller()
                 }
             }
         }
+
+        // Whether backing up to an attached drive may be used at all. Off unless
+        // config.cfg says "yes", which install.sh sets on a Raspberry Pi and
+        // nowhere else. The scripts check the same value before doing anything
+        // as root; this copy of the check keeps the interface honest, theirs is
+        // what keeps a root process out of reach where the feature is switched
+        // off, since config.cfg cannot be written from here.
+        // "1" as well as "yes": parse_ini_string() turns an unquoted yes into 1.
+        $drive_backup_enabled = isset($parsed_ini['drive_backup_enabled'])
+            && in_array(strtolower(trim($parsed_ini['drive_backup_enabled'])), array("yes", "1"));
     } else {
         return "<br><div class='alert alert-error'><b>".tr("Error:")."</b> ".tr("missing backup config.cfg")."</div>";
     }
@@ -184,7 +197,10 @@ function backup_controller()
     $drive_restore_logfile = $settings['log']['location']."/driverestore.log";
 
     if ($route->format == 'html' && $route->action == "") {
-        $result = view("Modules/backup/backup_view.php",array("parsed_ini"=>$parsed_ini));
+        $result = view("Modules/backup/backup_view.php",array(
+            "parsed_ini"=>$parsed_ini,
+            "drive_backup_enabled"=>$drive_backup_enabled
+        ));
     }
 
     if ($route->action == 'start') {
@@ -263,7 +279,37 @@ function backup_controller()
 
     // ------------------------------------------------------------------
     // Write efficient backup to an attached drive (drive-backup.sh)
+    //
+    // All of these are refused when the drive backup is switched off in
+    // config.cfg. The ones that change something also have to be POSTed: the
+    // session cookie is SameSite=Strict, which already keeps another site from
+    // making the browser send them, and requiring POST means a link or an image
+    // tag cannot either.
     // ------------------------------------------------------------------
+
+    $drive_actions = array(
+        'drivediscover', 'drivedevices', 'drivebackup', 'drivebackupverify',
+        'drivesetpath', 'drivemount', 'driveformatmount', 'driveschedule', 'driverestore'
+    );
+    $drive_write_actions = array(
+        'drivebackup', 'drivebackupverify', 'drivesetpath', 'drivemount',
+        'driveformatmount', 'driveschedule', 'driverestore'
+    );
+
+    if (in_array($route->action, $drive_actions)) {
+        if (!$drive_backup_enabled) {
+            if ($route->action == 'drivediscover' || $route->action == 'drivedevices') {
+                $route->format = "json";
+                return array('content' => array());
+            }
+            $route->format = "text";
+            return array('content' => tr("Backup to an attached drive is not enabled on this system"));
+        }
+        if (in_array($route->action, $drive_write_actions) && $route->method != "POST") {
+            $route->format = "text";
+            return array('content' => tr("This action has to be requested with POST"));
+        }
+    }
 
     if ($route->action == "drivebackup") {
         $route->format = "text";
@@ -310,7 +356,7 @@ function backup_controller()
     if ($route->action == 'drivesetpath') {
         $route->format = "text";
 
-        $mountpoint = isset($_GET['mountpoint']) ? $_GET['mountpoint'] : "";
+        $mountpoint = isset($_POST['mountpoint']) ? $_POST['mountpoint'] : "";
         $found = false;
         foreach (backup_discover_drives($parsed_ini) as $drive) {
             if ($drive['mountpoint'] === $mountpoint) $found = true;
@@ -338,7 +384,7 @@ function backup_controller()
     if ($route->action == 'drivemount') {
         $route->format = "text";
 
-        $id = isset($_GET['id']) ? $_GET['id'] : "";
+        $id = isset($_POST['id']) ? $_POST['id'] : "";
         $found = false;
         foreach (backup_discover_devices($parsed_ini) as $device) {
             // A drive with no filesystem has nothing to mount. It needs
@@ -360,8 +406,8 @@ function backup_controller()
     if ($route->action == 'driveformatmount') {
         $route->format = "text";
 
-        $id = isset($_GET['id']) ? $_GET['id'] : "";
-        $confirm = isset($_GET['confirm']) ? $_GET['confirm'] : "";
+        $id = isset($_POST['id']) ? $_POST['id'] : "";
+        $confirm = isset($_POST['confirm']) ? $_POST['confirm'] : "";
         if ($confirm !== "ERASE") {
             return array('content' => tr("Formatting was not confirmed"));
         }
@@ -383,7 +429,7 @@ function backup_controller()
     if ($route->action == 'driveschedule') {
         $route->format = "text";
 
-        $enable = isset($_GET['enable']) && $_GET['enable'] == "1";
+        $enable = isset($_POST['enable']) && $_POST['enable'] == "1";
         $arg = $enable ? "--enable-schedule" : "--disable-schedule";
 
         $result = $enable ? tr("Turning on daily backup") : tr("Turning off daily backup");
@@ -411,19 +457,22 @@ function backup_controller()
         }
 
         $args = array("--yes");
-        if (isset($_GET['delete']) && $_GET['delete'] == "1") {
+        if (isset($_POST['delete']) && $_POST['delete'] == "1") {
             $args[] = "--delete";
         }
 
-        $sql = isset($_GET['sql']) ? $_GET['sql'] : "";
+        $sql = isset($_POST['sql']) ? $_POST['sql'] : "";
 
         if ($sql != "") {
-            if ($sql !== basename($sql)) {
+            // A bare snapshot filename, nothing else. The same shape the
+            // backup writes, which also rules out "." and "..", which
+            // basename() alone would let through.
+            if (!preg_match('/^[A-Za-z0-9._-]+\.sql\.gz$/', $sql)) {
                 return array('content' => tr("Invalid snapshot name"));
             }
             $found = false;
             foreach (array("daily","weekly") as $period) {
-                if (file_exists("$drive_backup_path/sql/$period/$sql")) $found = true;
+                if (is_file("$drive_backup_path/sql/$period/$sql")) $found = true;
             }
             if (!$found) {
                 return array('content' => tr("Snapshot not found on the backup drive"));
@@ -444,6 +493,9 @@ function backup_controller()
 
         $drive_backup_path = isset($parsed_ini['drive_backup_path']) ? $parsed_ini['drive_backup_path'] : "";
         $status = array(
+            // false when switched off in config.cfg, in which case nothing
+            // below is looked at and the interface explains how to turn it on
+            "enabled" => $drive_backup_enabled,
             "configured" => ($drive_backup_path != ""),
             "path" => $drive_backup_path,
             "available" => false,
@@ -458,7 +510,7 @@ function backup_controller()
 
         // The marker file is what drive-backup.sh itself checks for, so this
         // reports availability on exactly the same basis as the script
-        if ($status['configured'] && file_exists("$drive_backup_path/.emoncms-backup-target")) {
+        if ($drive_backup_enabled && $status['configured'] && file_exists("$drive_backup_path/.emoncms-backup-target")) {
 
             // A drive that was unplugged and plugged back in leaves the old mount
             // in place, answering every access with an I/O error. file_exists()
@@ -496,7 +548,7 @@ function backup_controller()
             }
         }
 
-        $status['schedule'] = backup_next_scheduled();
+        $status['schedule'] = $drive_backup_enabled ? backup_next_scheduled() : array("scheduled" => null, "next_run" => false);
         if ($status['available']) {
             $drive = backup_drive_for_path($parsed_ini, $drive_backup_path);
             if ($drive !== false) $status['drive'] = $drive;

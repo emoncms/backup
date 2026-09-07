@@ -27,8 +27,14 @@
         string literal breaks as soon as a translation contains an apostrophe.
     */
 
-    global $path;
+    global $path, $linked_modules_dir;
     @exec('ps ax | grep service-runner.py | grep -v grep', $servicerunnerproc);
+
+    // Where to tell the user to turn the drive backup on. The real file rather
+    // than the symlink under Modules/, since that is the one they will edit.
+    $config_path = isset($parsed_ini['backup_script_location'])
+        ? $parsed_ini['backup_script_location']."/config.cfg"
+        : "$linked_modules_dir/backup/config.cfg";
     $servicerunner_running = !empty($servicerunnerproc);
 
     $archive_filename = "emoncms-backup-".preg_replace('/[^a-zA-Z0-9\-]/', '-', gethostname())."-".date("Y-m-d").".tar.gz";
@@ -37,6 +43,8 @@
 
     $T = array(
         "checking"        => tr("Checking"),
+        "disabled"        => tr("Backup to a drive is turned off"),
+        "disabled_d"      => tr("This system is not set up to back up to an attached drive. See below for how to turn it on."),
         "not_set_up"      => tr("No automatic backup set up"),
         "not_set_up_d"    => tr("Your data is not being copied anywhere. Choose a drive below."),
         "not_connected"   => tr("Backup drive not connected"),
@@ -337,6 +345,27 @@ body { background-color: var(--bg-body); }
 
         <div class="bk-section"><?php echo tr("Automatic backup"); ?></div>
 
+        <?php if (!$drive_backup_enabled) { ?>
+        <!-- Switched off in config.cfg. Nothing drive related is offered, and
+             nothing drive related is asked of the server: the controller refuses
+             every drive action, and the scripts refuse again underneath it. -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-accent"></span>
+                <span class="card-name"><?php echo tr("Backup to an attached drive"); ?></span>
+                <span class="bk-badge grey"><?php echo tr("turned off"); ?></span>
+            </div>
+            <div class="card-body">
+                <p class="muted"><?php echo tr("Emoncms can keep a copy of your data on a USB drive or a NAS share, adding only what is new each day. Doing that runs as root: it mounts drives, edits /etc/fstab and can format a disk. It is turned on automatically on a Raspberry Pi and left off everywhere else, so that it cannot be reached where it is not wanted."); ?></p>
+                <p class="muted"><?php echo tr("To use it on this system, set"); ?>
+                    <span class="mono">drive_backup_enabled="yes"</span>
+                    <?php echo tr("in"); ?> <span class="mono"><?php echo htmlspecialchars($config_path); ?></span>,
+                    <?php echo tr("run"); ?> <span class="mono">./install.sh</span>
+                    <?php echo tr("from the module directory to install the timers, and reload this page."); ?></p>
+            </div>
+        </div>
+        <?php } else { ?>
+
         <!-- The drive backup, all of it.
              Where the copy goes, when it last ran, when it runs next and what
              can be done to it are one subject, so they are one card rather than
@@ -577,6 +606,8 @@ body { background-color: var(--bg-body); }
             </table>
         </div>
 
+        <?php } // drive_backup_enabled ?>
+
         <!-- A different job from the drive backup, so it is kept apart from it
              rather than sitting in the middle of it -->
         <div class="bk-section"><?php echo tr("Portable copy"); ?></div>
@@ -611,10 +642,17 @@ body { background-color: var(--bg-body); }
             <div class="card-header">
                 <span class="card-accent"></span>
                 <span class="card-name"><?php echo tr("From the backup drive"); ?></span>
+                <?php if (!$drive_backup_enabled) { ?>
+                <span class="bk-badge grey"><?php echo tr("turned off"); ?></span>
+                <?php } else { ?>
                 <span class="bk-badge ok" v-if="status.available"><?php echo tr("Connected"); ?></span>
                 <span class="bk-badge grey" v-else><?php echo tr("Not connected"); ?></span>
+                <?php } ?>
             </div>
             <div class="card-body">
+                <?php if (!$drive_backup_enabled) { ?>
+                <p class="muted"><?php echo tr("Backup to an attached drive is turned off on this system, so there is no drive to restore from. The Backup tab says how to turn it on."); ?></p>
+                <?php } else { ?>
                 <p class="muted"><?php echo tr("The copy kept up to date by the daily backup."); ?></p>
 
                 <div v-if="status.available && status.sql && status.sql.length">
@@ -652,6 +690,7 @@ body { background-color: var(--bg-body); }
                 </div>
                 <p class="muted" v-else-if="status.available"><?php echo tr("No restore points on the drive yet."); ?></p>
                 <p class="muted" v-else><?php echo tr("Connect the backup drive to restore from it."); ?></p>
+                <?php } ?>
             </div>
         </div>
 
@@ -742,7 +781,7 @@ Vue.createApp({
     data() { return {
         T: <?php echo json_encode($T); ?>,
         tab: (location.hash === "#restore" ? "restore" : "backup"),
-        status: {configured: null, available: false, unresponsive: false, sql: [], free_mb: 0, total_mb: 0, path: ""},
+        status: {enabled: null, configured: null, available: false, unresponsive: false, sql: [], free_mb: 0, total_mb: 0, path: ""},
         drives: [],
         // Drives that are plugged in but not mounted, from a scan
         devices: [],
@@ -835,6 +874,7 @@ Vue.createApp({
         hero: function() {
             var s = this.status, T = this.T;
             if (s.configured === null) return {level: "idle", headline: T.checking, detail: ""};
+            if (s.enabled === false) return {level: "idle", headline: T.disabled, detail: T.disabled_d};
             if (!s.configured) return {level: "idle", headline: T.not_set_up, detail: T.not_set_up_d};
 
             var next = "";
@@ -931,17 +971,21 @@ Vue.createApp({
             self.now = Math.floor(Date.now()/1000);
             $.ajax({url: backup_path + "backup/drivebackupstatus", dataType: "json", success: function(s) {
                 self.status = s;
+                // Switched off in config.cfg. The server would refuse the drive
+                // queries anyway; not making them keeps the page quiet.
+                if (s.enabled === false) return;
                 if (s.sql && s.sql.length && self.restore_sql === "") self.restore_sql = s.sql[0].name;
+                $.ajax({url: backup_path + "backup/drivediscover", dataType: "json", success: function(d) {
+                    self.drives = d;
+                }});
                 // Nothing is configured, so a drive is almost certainly plugged
                 // in waiting to be found. Look without making the user ask.
                 if (s.configured === false && !self.scanned && !self.scanning) self.scan();
+                // Only once the list is on screen, so that it stays honest after
+                // a drive has been set up or unplugged. Until then it waits to
+                // be asked.
+                else if (self.scanned) self.scan();
             }});
-            $.ajax({url: backup_path + "backup/drivediscover", dataType: "json", success: function(d) {
-                self.drives = d;
-            }});
-            // Only once the list is on screen, so that it stays honest after a
-            // drive has been set up or unplugged. Until then it waits to be asked.
-            if (self.scanned) self.scan();
         },
 
         // Look for drives that are plugged in but not mounted
@@ -987,27 +1031,24 @@ Vue.createApp({
 
         do_mount: function(d) {
             this.cancel_setup();
-            this.start("drivemount?id=" + encodeURIComponent(d.id),
-                       "drivebackuplog", this.T.setting_up);
+            this.start("drivemount", {id: d.id}, "drivebackuplog", this.T.setting_up);
         },
 
         do_format_mount: function(d) {
             if (this.erase_text !== "ERASE") return;
             this.cancel_setup();
-            this.start("driveformatmount?id=" + encodeURIComponent(d.id) + "&confirm=ERASE",
-                       "drivebackuplog", this.T.formatting);
+            this.start("driveformatmount", {id: d.id, confirm: "ERASE"}, "drivebackuplog", this.T.formatting);
         },
 
         set_schedule: function(on) {
-            this.start("driveschedule?enable=" + (on ? "1" : "0"),
+            this.start("driveschedule", {enable: on ? "1" : "0"},
                        "drivebackuplog", on ? this.T.schedule_on : this.T.schedule_off);
         },
 
         pick: function(drive) {
             if (!confirm(this.T.use_drive_q + "\n\n" + drive.mountpoint)) return;
             this.change_drive = false;
-            this.start("drivesetpath?mountpoint=" + encodeURIComponent(drive.mountpoint),
-                       "drivebackuplog", this.T.preparing);
+            this.start("drivesetpath", {mountpoint: drive.mountpoint}, "drivebackuplog", this.T.preparing);
         },
 
         run: function(action, log_action) {
@@ -1018,19 +1059,21 @@ Vue.createApp({
                 usbimport: this.T.importing_sd
             };
             if (action == "usbimport") this.restore_started = true;
-            this.start(action, log_action, titles[action] || action);
+            this.start(action, {}, log_action, titles[action] || action);
         },
 
         do_restore: function() {
             if (!this.restore_confirm) return;
-            var url = "driverestore?sql=" + encodeURIComponent(this.restore_sql);
-            if (this.restore_delete) url += "&delete=1";
+            var params = {sql: this.restore_sql, delete: this.restore_delete ? "1" : "0"};
             this.restore_confirm = false;
             this.restore_started = true;
-            this.start(url, "driverestorelog", this.T.restoring);
+            this.start("driverestore", params, "driverestorelog", this.T.restoring);
         },
 
-        start: function(action, log_action, title) {
+        // Every action is sent as a POST with its parameters in the body. The
+        // server insists on that for anything that changes something, so that
+        // a link or an image tag can never start one.
+        start: function(action, params, log_action, title) {
             var self = this;
             self.busy = true;
             self.show_log = true;
@@ -1048,7 +1091,7 @@ Vue.createApp({
             $.ajax({url: backup_path + "backup/" + log_action, dataType: "text",
                 complete: function(xhr) {
                     self.log_before = (xhr.status == 200) ? xhr.responseText : "";
-                    $.ajax({url: backup_path + "backup/" + action, dataType: "text", success: function(result) {
+                    $.ajax({url: backup_path + "backup/" + action, type: "POST", data: params, dataType: "text", success: function(result) {
                         self.log_text = result;
                         clearInterval(self.log_timer);
                         self.log_timer = setInterval(self.poll_log, 1000);

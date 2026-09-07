@@ -71,9 +71,32 @@ On a system with 83 feeds and 738 MB of PHPFina data:
 The MYSQL dump uses `--single-transaction`, so unlike the archive export there is
 no need to stop `feedwriter`.
 
+### Enabling it
+
+Backing up to a drive runs as root: it reads every feed file, mounts drives,
+writes `/etc/fstab` and can format a disk. It is therefore behind a switch in
+`config.cfg`:
+
+    drive_backup_enabled="yes"
+
+`install.sh` sets it to `yes` on a Raspberry Pi, where a USB backup drive is the
+normal case, and to `no` on anything else. On a virtual machine or a server, set
+it to `yes` by hand if you want to back up to a second disk or a NAS share, then
+run `install.sh` again to install the timers and the packages formatting needs.
+Left at `no`, `drive-backup.sh` and `drive-restore.sh` refuse to do anything
+past the read only listing of drives, whether asked from the interface or from a
+shell, and the interface says how to turn it on. Turning the timers off with
+`--disable-schedule` is always allowed.
+
+The check is in the scripts rather than only in the interface on purpose.
+`config.cfg` cannot be written from the web interface, so this is the one switch
+a compromised web tier cannot flip, and it is what makes the `backup-drive-*`
+entries in the `service-runner` whitelist inert on a system where the feature is
+not wanted. Discovery, which only lists drives, stays available either way.
+
 ### Setup
 
-The quickest route is the **Backup** tab of the backup module in Emoncms: plug
+With it enabled, the quickest route is the **Backup** tab of the backup module in Emoncms: plug
 the drive in, press **Scan for drives**, and it offers to set up what it finds.
 Confirming mounts the drive, adds it to `/etc/fstab` so it is mounted again after
 a reboot, selects it as the backup destination and prepares it. Any drive can
@@ -149,7 +172,7 @@ is thorough without being wasteful.
 
 ### Scheduling
 
-`install.sh` installs two systemd timers. They are enabled automatically if
+`install.sh` installs two systemd timers when the drive backup is enabled. They are enabled automatically if
 `drive_backup_path` is already set when it runs, which on a fresh install it is
 not. Choosing a destination enables them, whether that is done in the interface
 or with `--set-path`, so in the normal case there is nothing to do.
@@ -281,6 +304,21 @@ waiting for a prompt no one can answer.
 
 `--discover` and `--discover-devices` are deliberately before that point. They are
 run directly by the web server user, which has no sudo rights and needs none.
+So is the `drive_backup_enabled` check, see [Enabling it](#enabling-it): a system
+with the feature switched off never reaches the re-exec.
+
+This relies on the user `service-runner` runs as having passwordless sudo for
+everything, which the Raspberry Pi OS default user has and which the EmonScripts
+install guides set up on other systems. A sudoers rule naming just these two
+scripts would not be tighter: they are owned by that same user, who could edit
+them, so it would be equivalent to full sudo. Tightening it means making the
+scripts root owned and not writable by that user, and only then granting sudo
+for exactly those paths.
+
+Every drive action that changes something has to be requested with POST. The
+session cookie is `SameSite=Strict`, which already stops another site from
+making the browser send it, and requiring POST means a link or an image tag
+cannot start one either.
 
 The destination chosen in the interface is written to `drive-backup-path.conf`
 rather than to `config.cfg`, and it takes precedence over `config.cfg`.
