@@ -1,66 +1,60 @@
-# Emoncms backup export and import tool for backup and migration
+# Emoncms backup
 
-* Export a compressed archive containing Emoncms Inputs, Feed data, Dashboards & config
+Backup and restore for Emoncms. There are two kinds of backup.
 
-* Backup contains the Emoncms MYSQL database, phpfina, phptimeseries data files, emonhub.conf and emoncms.conf
+- **A portable archive.** One `.tar.gz` file holding the MYSQL database, the phpfina, phpfiwa and phptimeseries feed data, `emonhub.conf` and `settings.ini` (or `settings.php`). `emoncms-export.sh` builds it and `emoncms-import.sh` reads it. Use it to move to another system or to keep a copy off site.
+- **A daily backup to an attached drive.** A mirror on a USB drive or NAS share that writes only what has changed. `drive-backup.sh` maintains it and `drive-restore.sh` restores from it.
 
-* Import compressed archive into another Emoncms account
+Both are available from the **Backup** module in Emoncms and from a shell.
 
-## User Guide
+![The Backup tab of the Emoncms backup module](backup_module.png)
 
-[Backup module User Guide](https://guide.openenergymonitor.org/setup/import/)
+## User guide
 
-Via Emoncms module web interface [(see video screencast guide)](https://www.youtube.com/watch?v=5U_tOlsWjXM) or manual (see below for manual instructions):
+[Backup module User Guide](https://guide.openenergymonitor.org/setup/import/) and a [video screencast](https://www.youtube.com/watch?v=5U_tOlsWjXM).
 
 ## Install
 
-**Requirements**
+Requirements:
 
-- Latest emoncms master or stable branch, installed in /var/www/emoncms
-- Emoncms with redis enabled
-- Emoncms with service-runner service running (see: [Emoncms: Install Service-runner](https://github.com/emoncms/emoncms/blob/master/scripts/services/install-service-runner-update.md))
+- Emoncms master or stable, installed in `/var/www/emoncms`
+- Redis enabled
+- The service-runner service running ([install instructions](https://github.com/emoncms/emoncms/blob/master/scripts/services/install-service-runner-update.md))
 
-If you have not done so already, install the EmonScripts repository:
+Install the EmonScripts repository if it is not already present:
 
     cd /opt/openenergymonitor
     git clone https://github.com/openenergymonitor/EmonScripts.git
- 
-Install this module in /opt/emoncms/modules:
+
+Install this module:
 
     cd /opt/emoncms/modules
     git clone https://github.com/emoncms/backup.git
-    
-Run backup module installation script to modify php.ini and setup uploads folder:
-
     cd backup
     ./install.sh
 
-## Manual Export Instructions
+`install.sh` creates `config.cfg` from `default.config.cfg`, symlinks the module into Emoncms, raises the PHP upload limits and creates the uploads folder. On a Raspberry Pi it also installs the packages and systemd timers for the drive backup, see [Enabling it](#enabling-it).
 
-Run `./emoncms-export.sh`
+## Portable archive
 
-## Manual Import Instructions
+Export from a shell:
 
-If importing large backup files browser upload method may fail. In this case follow:
+    ./emoncms-export.sh
 
-1. Copy `emoncms-backup-xxx.tar.gz` backup file to `data_source_path` in `config.cfg`
+The export stops `feedwriter` while it runs and writes the whole dataset each time.
+
+The browser upload can fail for a large archive. In that case:
+
+1. Copy the `.tar.gz` file to the `backup_source_path` directory named in `config.cfg`
 2. Run `./emoncms-import.sh`
 
+## Backup to an attached drive
 
-## Write efficient backup to an attached drive
+`emoncms-export.sh` rebuilds and recompresses a complete archive on every run, writing about twice the size of the dataset. That is too slow for a daily backup and wears out a flash drive.
 
-`emoncms-export.sh` rebuilds and recompresses a complete archive on every run, so
-it writes roughly twice the size of the dataset each time. That is fine for an
-occasional migration but unsuitable for a daily backup to a USB flash drive,
-both for speed and for flash wear.
+`drive-backup.sh` keeps a directory mirror on the drive and writes only what has changed. The destination can be a USB disk or a NAS share. PHPFina and PHPTimeSeries are append only stores with fixed record sizes (4 and 9 bytes), so from one day to the next the only new feed data is at the end of each file. `rsync --append-verify` writes just that tail.
 
-`drive-backup.sh` instead maintains a directory *mirror* on the drive and writes
-only what has changed. The destination can be a USB disk or a NAS share. The PHPFina and PHPTimeSeries engines are append only
-fixed record size stores (4 and 9 bytes per record), so from one day to the next
-the only new feed data is at the end of each file. `rsync --append-verify` sends
-and writes just that tail.
-
-On a system with 83 feeds and 738 MB of PHPFina data:
+Measured on a system with 83 feeds and 738 MB of PHPFina data:
 
 | | written per run |
 |---|---|
@@ -68,74 +62,51 @@ On a system with 83 feeds and 738 MB of PHPFina data:
 | `drive-backup.sh` feed data | 1.8 MB |
 | `drive-backup.sh` MYSQL dump | 1.1 MB |
 
-The MYSQL dump uses `--single-transaction`, so unlike the archive export there is
-no need to stop `feedwriter`.
+The MYSQL dump uses `--single-transaction`, so `feedwriter` keeps running.
 
 ### Enabling it
 
-Backing up to a drive runs as root: it reads every feed file, mounts drives,
-writes `/etc/fstab` and can format a disk. It is therefore behind a switch in
-`config.cfg`:
+Backing up to a drive runs as root. It reads every feed file, mounts drives, writes `/etc/fstab` and can format a disk. It is behind a switch in `config.cfg`:
 
     drive_backup_enabled="yes"
 
-`install.sh` sets it to `yes` on a Raspberry Pi, where a USB backup drive is the
-normal case, and to `no` on anything else. On a virtual machine or a server, set
-it to `yes` by hand if you want to back up to a second disk or a NAS share, then
-run `install.sh` again to install the timers and the packages formatting needs.
-Left at `no`, `drive-backup.sh` and `drive-restore.sh` refuse to do anything
-past the read only listing of drives, whether asked from the interface or from a
-shell, and the interface says how to turn it on. Turning the timers off with
-`--disable-schedule` is always allowed.
+`install.sh` sets it to `yes` on a Raspberry Pi and to `no` anywhere else. To use it on a virtual machine or a server, set it to `yes` by hand and run `install.sh` again. That installs the timers and the `rsync`, `parted` and `btrfs-progs` packages.
 
-The check is in the scripts rather than only in the interface on purpose.
-`config.cfg` cannot be written from the web interface, so this is the one switch
-a compromised web tier cannot flip, and it is what makes the `backup-drive-*`
-entries in the `service-runner` whitelist inert on a system where the feature is
-not wanted. Discovery, which only lists drives, stays available either way.
+With the switch at `no`, `drive-backup.sh` and `drive-restore.sh` refuse everything except listing drives and turning the timers off. This applies from the interface and from a shell alike. The interface says how to turn it on.
 
-### Setup
+The scripts check the switch themselves. `config.cfg` cannot be written from the web interface, so a compromised web tier cannot flip it, and the `backup-drive-*` entries in the `service-runner` whitelist do nothing on a system where the feature is off.
 
-With it enabled, the quickest route is the **Backup** tab of the backup module in Emoncms: plug
-the drive in, press **Scan for drives**, and it offers to set up what it finds.
-Confirming mounts the drive, adds it to `/etc/fstab` so it is mounted again after
-a reboot, selects it as the backup destination and prepares it. Any drive can
-instead be erased and formatted as btrfs first, behind a typed confirmation that
-lists everything currently on the disk; a drive with no filesystem on it is
-offered that way only. btrfs is the recommended format for a backup drive: it
-checksums every block, so damage on an SD card is detected rather than
-restored, and it compresses feed data by about 80%.
+### Setting up a drive
 
-Only drives that are plugged in and not already mounted are offered, and never
-anything on a disk the running system is using, so the SD card cannot be picked
-by mistake. See [Setting up a drive from the interface](#setting-up-a-drive-from-the-interface)
-below for what it does and does not do.
+The quickest route is the **Backup** tab. Plug the drive in and press **Scan for drives**. The tab lists drives that are already mounted alongside drives that are plugged in and not yet mounted, and offers each whatever it needs next.
 
-To do it by hand instead:
+Confirming a drive mounts it, adds it to `/etc/fstab`, selects it as the backup destination and prepares it. Any drive can instead be erased and formatted as btrfs, behind a typed confirmation that lists everything currently on the disk. A drive with no filesystem is offered that way only.
+
+btrfs is the recommended format. It checksums every block, so damage on the drive is detected. Mounted with `compress=zstd` it compresses feed data by about 80%, and it can snapshot the feed data as well as the database.
+
+Only drives that are not on a disk the running system uses are offered, so the SD card cannot be picked by mistake. See [What the interface does](#what-the-interface-does) below.
+
+To do it by hand:
 
 **1. Mount the drive.**
 
-For a USB disk, use `noatime` so that reading every file on each run does not
-generate a metadata write per file, and `nofail` so a missing drive cannot hang
-boot:
+For a USB disk use `noatime` and `nofail`. `noatime` avoids a metadata write per file on each run. `nofail` lets the system boot when the drive is missing.
 
     UUID=xxxx  /media/backup  ext4  defaults,noatime,nofail,x-systemd.device-timeout=10  0  2
 
-For a NAS, mount the share. Use `soft` on NFS so an unreachable server returns an
-error instead of blocking forever, and `nofail` so boot is not delayed:
+For a NAS, mount the share. On NFS use `soft`, so an unreachable server returns an error instead of blocking, and `nofail`.
 
     nas:/volume/emoncms  /media/backup  nfs   defaults,soft,timeo=50,retrans=2,nofail,noatime  0  0
     //nas/emoncms        /media/backup  cifs  credentials=/etc/emoncms-nas.cred,nofail,noatime,uid=root,gid=root  0  0
 
 **2. Choose it as the backup destination.**
 
-Either in the Emoncms interface, on the backup module's **Drive Backup** tab,
-which lists the drives it found and prepares the one you pick; or from a shell:
+From the **Backup** tab, or from a shell:
 
     ./drive-backup.sh --discover              # list what is available
     ./drive-backup.sh --set-path /media/backup
 
-Or set it by hand in `config.cfg` and prepare it yourself:
+Or set it in `config.cfg` and prepare it yourself:
 
     drive_backup_path="/media/backup/emoncms"
     ./drive-backup.sh --init
@@ -156,29 +127,15 @@ Or set it by hand in `config.cfg` and prepare it yourself:
     ./drive-backup.sh --enable-schedule    # turn the daily and weekly timers on
     ./drive-backup.sh --disable-schedule   # and off again
 
-`<id>` is the identifier in the first column of `--discover-devices`, normally a
-`/dev/disk/by-id/` path. It is used rather than `/dev/sda1` because kernel names
-are handed out in the order drives are found, so the drive that was `/dev/sda`
-during a scan can be a different drive by the time the user confirms.
+`<id>` is the first column of `--discover-devices`, normally a `/dev/disk/by-id/` path. Kernel names such as `/dev/sda` are handed out in the order drives appear, so the drive scanned as `/dev/sda` can be a different drive by the time the user confirms.
 
-The first run copies the whole dataset; later runs append only new data.
+The first run copies the whole dataset. Later runs append new data only.
 
-Run `--verify` periodically, weekly or monthly. It is needed because
-`--append-verify` skips any file whose size on the destination already matches
-the source, so a same size in place rewrite (PHPFina back filling padding, or the
-postprocess module rewriting history) is invisible to the default mode. Verify
-compares every file by checksum and rewrites only the blocks that differ, so it
-is thorough without being wasteful.
+Run `--verify` weekly or monthly. `--append-verify` skips any file whose size on the destination matches the source, so a same size rewrite in place (PHPFina back filling padding, or the postprocess module rewriting history) is invisible to the default mode. Verify compares every file by checksum and rewrites only the blocks that differ.
 
 ### Scheduling
 
-`install.sh` installs two systemd timers when the drive backup is enabled. They are enabled automatically if
-`drive_backup_path` is already set when it runs, which on a fresh install it is
-not. Choosing a destination enables them, whether that is done in the interface
-or with `--set-path`, so in the normal case there is nothing to do.
-
-They can also be turned on and off from the **Run now** card in the interface, or
-from a shell:
+`install.sh` installs two systemd timers when the drive backup is enabled. Choosing a destination, in the interface or with `--set-path`, turns them on. They can also be turned on and off from the **Backup drive** card in the interface, or from a shell:
 
     ./drive-backup.sh --enable-schedule
     ./drive-backup.sh --disable-schedule
@@ -192,149 +149,75 @@ which is equivalent to:
 | `emoncms-drive-backup.timer` | daily | append new feed data |
 | `emoncms-drive-backup-verify.timer` | Sundays 04:00 | full checksum verify and repair |
 
-Both use `Persistent=true`, so a backup missed while the system was powered off
-runs on the next boot rather than being skipped, and `RandomizedDelaySec=1h` so
-that several systems on one site do not all wake at once.
+Both use `Persistent=true`, so a backup missed while the system was off runs at the next boot, and `RandomizedDelaySec=1h`, so several systems on one site do not wake together.
 
-The timers run the script with `--if-mounted`, which treats an absent drive as a
-skipped run rather than a failure. You can unplug the drive without filling the
-journal with errors, and the next run after plugging it back in catches up with
-everything missed in between.
+The timers run the script with `--if-mounted`. An absent drive, an unreachable share or a run already in progress counts as a skipped run, not a failure. The next run after the drive returns catches up.
 
-Check status and see the schedule:
+Check status:
 
     systemctl list-timers 'emoncms-drive-backup*'
     systemctl status emoncms-drive-backup
     journalctl -u emoncms-drive-backup -o cat
 
-Each run also writes `/var/log/emoncms/drivebackup.log` (and
-`drivebackup-verify.log`), overwritten each time, holding the output of the most
-recent run.
+Each run also writes `/var/log/emoncms/drivebackup.log` (`drivebackup-verify.log` for verify), overwritten each time.
 
-Run one immediately without waiting for the timer:
+Run one now:
 
     sudo systemctl start emoncms-drive-backup
 
-### Emoncms interface
+### The Emoncms interface
 
-The backup module has two tabs, **Backup** and **Restore**.
+The module has two tabs, **Backup** and **Restore**.
 
-Backup opens with a single line saying whether the data is actually protected:
-green only when a recent backup exists *and* the daily timer is running, amber
-when the drive is disconnected, when backups are falling behind, or when nothing
-is scheduled, red when the last run failed, when the backup is more than a week
-old, or when the drive is mounted but not answering.
+Backup opens with one line saying whether the data is protected.
 
-Below that the tab is in two parts, because it does two different jobs:
+| Colour | Meaning |
+|---|---|
+| green | a recent backup exists and the daily timer is on |
+| amber | the drive is disconnected, no backup has been taken yet, the last backup is more than two days old, or the timer is off |
+| red | the last run failed, the last backup is more than a week old, or the drive is mounted but not answering |
 
-**Automatic backup** is the ongoing protection. One card holds everything about
-it: where the copy goes, how full the drive is, when it last ran and what it
-wrote, when it runs next, and the buttons to back up, verify, or turn the daily
-schedule on and off. The explanations sit inside it as disclosures, next to what
-they explain, rather than at the foot of the page. A second card lists the
-restore points held on the drive.
+Below that the tab has two sections.
 
-When there is no working destination, or **Change drive** is pressed, a single
-card offers every drive that could be used: those already mounted alongside those
-that are plugged in and still need setting up, in one list, each row offering
-whatever that drive needs next. Pressing **Scan for drives** looks again.
+**Automatic backup.** The **Backup drive** card shows where the copy goes, how full the drive is, when it last ran and what it wrote, and when it runs next. Its buttons back up, verify, and turn the daily schedule on and off. Explanations sit inside the card as disclosures. **Change drive** opens the list of drives. A second card, **Restore points**, lists the database snapshots held on the drive.
 
-**Portable copy** is the occasional one: build an archive and download it. It is
-kept apart from the drive backup rather than sitting in the middle of it.
+When there is no working destination, or **Change drive** is pressed, one card lists every drive that could be used. Mounted drives sit alongside drives that still need setting up. **Scan for drives** looks again.
 
-Every run reports whether it worked in the header of its log.
+**Portable copy.** Build an archive and download it.
 
-Restore gathers all three recovery paths in one place: the backup drive, an
-uploaded `.tar.gz` archive, and an old emonSD card in a USB reader. Each requires
-ticking a confirmation box.
+Each run reports Complete, Failed or Nothing to do in the header of its log.
 
-#### Setting up a drive from the interface
+Restore gathers the three recovery paths: the backup drive, an uploaded `.tar.gz` archive, and an old emonSD card in a USB reader. Restoring from the drive or the SD card needs a confirmation box ticked.
 
-**Scan for drives** runs `--discover-devices`, which lists attached block devices
-that are not mounted. A device is only offered if it is not on any disk carrying
-a mounted filesystem, is not read only, is at least 512 MB, and either holds a
-filesystem that can be mounted or holds nothing at all. Swap, LVM and RAID
-members and encrypted volumes are never listed.
+#### What the interface does
 
-Confirming runs `--mount <id>`, which:
+**Scan for drives** runs `--discover-devices`. A device is offered if it is not on a disk carrying a mounted filesystem or active swap, is not read only, is at least 512 MB, and holds either a mountable filesystem or nothing at all. Swap, LVM and RAID members and encrypted volumes are never listed. A card reader with no card in it is listed as such and cannot be used.
 
-1. re-checks the identifier against its own `--discover-devices` output, exactly
-   as `--set-path` re-checks a mountpoint, so the interface cannot name a device
-   of its own choosing
-2. works out how to name the filesystem in `/etc/fstab`: its UUID where it has
-   one, otherwise its `PARTUUID`, otherwise the `/dev/disk/by-id/` path it was
-   chosen by. FAT has only a short volume serial and some drives report none at
-   all, so a UUID cannot be assumed. If that name is already in `/etc/fstab` the
-   mountpoint that entry gives is used, rather than a second entry being added
-   for the same filesystem
-3. otherwise picks the first free `/media/emoncms-backup`, `-2`, `-3` ... and
-   appends an entry with `noatime,nofail,x-systemd.device-timeout=10`, plus
-   `compress=zstd` on btrfs and fixed `uid`/`gid` on filesystems that cannot
-   store unix ownership
-4. copies `/etc/fstab` to `/etc/fstab.emoncms-backup.<timestamp>.bak` first, and
-   restores it if the drive then fails to mount, so a drive that will not mount
-   cannot leave an entry behind that breaks the next boot
-5. hands over to `--set-path`, so selecting and preparing the destination goes
-   through the same code as choosing an already mounted drive
+Confirming a drive runs `--mount <id>`, which:
 
-`--format-mount <id> --confirm-erase` additionally erases the **whole disk** the
-chosen device sits on and writes a GPT label, a single partition and a btrfs
-filesystem labelled `emoncms-backup`. The whole disk rather than one partition
-because a used SD card carries a boot partition and a root partition, and
-formatting only one of them would leave a mixed card. `--discover-devices`
-reports the disk and everything on it in its last three columns, and the
-interface shows that list in the confirmation. Before writing anything the
-script checks again that nothing on the disk is mounted or in use as swap, and
-`mkfs.btrfs` itself refuses a mounted device. `/etc/fstab` entries that named
-the old filesystems are removed, with the usual backup, so they do not
-accumulate. The interface asks for `ERASE` to be typed and sends that word with
-the request; the module checks it before queueing anything.
+1. checks the identifier against its own `--discover-devices` output, as `--set-path` checks a mountpoint. The interface cannot name a device of its own choosing.
+2. picks the name for `/etc/fstab`: the filesystem UUID, else its `PARTUUID`, else the `/dev/disk/by-id/` path it was chosen by. FAT has only a short volume serial and some drives report none. If that name is already in `/etc/fstab`, the mountpoint in that entry is used.
+3. otherwise picks the first free of `/media/emoncms-backup`, `-2`, `-3` and so on, and adds an entry with `noatime,nofail,x-systemd.device-timeout=10`. btrfs also gets `compress=zstd`. FAT, exFAT and NTFS get `uid=root,gid=root,umask=0022`, since they cannot store unix ownership.
+4. copies `/etc/fstab` to `/etc/fstab.emoncms-backup.<timestamp>.bak` first, and restores it if the drive fails to mount.
+5. hands over to `--set-path`.
+
+`--format-mount <id> --confirm-erase` first erases the **whole disk** the device sits on and writes a GPT label, one partition and a btrfs filesystem labelled `emoncms-backup`. The whole disk, because a used SD card carries a boot partition and a root partition and formatting one of them leaves a mixed card. `--discover-devices` reports the disk and its contents in its last three columns and the interface shows them in the confirmation. Before writing, the script checks again that nothing on the disk is mounted or in use as swap. `/etc/fstab` entries naming the old filesystems are removed, with the same backup. The interface asks for `ERASE` to be typed and sends it with the request. The module checks it before queueing anything.
 
 Formatting needs `parted` and `btrfs-progs`, which `install.sh` installs.
 
 #### Running as root
 
-Everything past the read only queries needs root: reading every feed file,
-writing a mirror that keeps their ownership, mounting a drive and writing
-`/etc/fstab`. The systemd timers run the script as root already. Started from the
-Emoncms interface it arrives as the `service-runner` user instead, so it re-execs
-itself under `sudo -n` rather than running on and reporting a permission error
-for every file. Without passwordless sudo it stops with a message instead of
-waiting for a prompt no one can answer.
+Everything past the read only queries needs root. The systemd timers run the script as root. From the Emoncms interface it runs as the `service-runner` user and re-execs itself under `sudo -n`. Without passwordless sudo it stops with a message.
 
-`--discover` and `--discover-devices` are deliberately before that point. They are
-run directly by the web server user, which has no sudo rights and needs none.
-So is the `drive_backup_enabled` check, see [Enabling it](#enabling-it): a system
-with the feature switched off never reaches the re-exec.
+`--discover` and `--discover-devices` run before that point, directly as the web server user, which has no sudo rights and needs none. So does the `drive_backup_enabled` check.
 
-This relies on the user `service-runner` runs as having passwordless sudo for
-everything, which the Raspberry Pi OS default user has and which the EmonScripts
-install guides set up on other systems. A sudoers rule naming just these two
-scripts would not be tighter: they are owned by that same user, who could edit
-them, so it would be equivalent to full sudo. Tightening it means making the
-scripts root owned and not writable by that user, and only then granting sudo
-for exactly those paths.
+This relies on the `service-runner` user having passwordless sudo for everything. The Raspberry Pi OS default user has it and the EmonScripts install guides set it up elsewhere. A sudoers rule naming just these two scripts would be no tighter, since the same user owns them and could edit them. Tightening it means making the scripts root owned and read only to that user, then granting sudo for exactly those paths.
 
-Every drive action that changes something has to be requested with POST. The
-session cookie is `SameSite=Strict`, which already stops another site from
-making the browser send it, and requiring POST means a link or an image tag
-cannot start one either.
+Every drive action that changes something must be requested with POST. The session cookie is `SameSite=Strict`, so another site cannot make the browser send it, and a link or an image tag cannot start an action.
 
-The destination chosen in the interface is written to `drive-backup-path.conf`
-rather than to `config.cfg`, and it takes precedence over `config.cfg`.
-`config.cfg` is sourced as shell by scripts running as root, so it is
-deliberately not writable from the web interface. The interface can only select
-a mountpoint that `drive-backup.sh --discover` reported, and `--set-path`
-re-checks that the mountpoint is in that list before accepting it, so choosing a
-destination can never point a root process at an arbitrary directory. The tab needs `service-runner` to be running, and the
-`backup-drive-sync`, `backup-drive-verify`, `backup-drive-setpath`,
-`backup-drive-mount`, `backup-drive-schedule` and `backup-drive-restore` actions to
-be present in its whitelist. They are in Emoncms core from the `backup_support`
-branch onwards; `service-runner` reads the whitelist once at startup, so it has
-to be restarted after Emoncms is updated. An action that is not on the whitelist
-is rejected without any output. The interface notices when the log has not
-changed 15 seconds after a request and reports the action as not started,
-rather than showing the previous run's log as if it were the result.
+The destination chosen in the interface is written to `drive-backup-path.conf`, which takes precedence over `config.cfg`. `config.cfg` is sourced as shell by scripts running as root, so it is not writable from the web interface. The interface can only select a mountpoint that `--discover` reported, and `--set-path` checks the mountpoint against that list again.
+
+The tab needs `service-runner` running with `backup-drive-sync`, `backup-drive-verify`, `backup-drive-setpath`, `backup-drive-mount`, `backup-drive-schedule` and `backup-drive-restore` on its whitelist. They are in Emoncms core from the `backup_support` branch onwards. `service-runner` reads the whitelist at startup, so restart it after updating Emoncms. An action missing from the whitelist is rejected without output. The interface reports an action as not started when the log has not changed 15 seconds after the request.
 
 ### Layout on the drive
 
@@ -348,8 +231,7 @@ rather than showing the previous run's log as if it were the result.
 
 ### Restoring
 
-`emoncms-import.sh` reads a `.tar.gz` archive and cannot read this mirror, so
-restoring uses `drive-restore.sh`:
+`emoncms-import.sh` reads a `.tar.gz` archive and cannot read this mirror. Restoring uses `drive-restore.sh`:
 
     ./drive-restore.sh --list        # show the snapshots on the drive
     ./drive-restore.sh               # restore the newest, asks you to confirm
@@ -357,65 +239,33 @@ restoring uses `drive-restore.sh`:
     ./drive-restore.sh --dry-run     # report what would be done, change nothing
     ./drive-restore.sh --delete      # also remove feed files not in the backup
 
-It stops the Emoncms services, imports the chosen MYSQL snapshot, copies the
-feed data back, restores `emonhub.conf`, flushes redis and restarts everything.
+It stops the Emoncms services, imports the chosen MYSQL snapshot, copies the feed data back, restores `emonhub.conf`, flushes redis and restarts everything.
 
-Before overwriting anything it dumps the current database to `backup_location`
-as `pre-restore-<date>.sql.gz`, so a restore started by mistake can be undone:
+Before overwriting anything it dumps the current database to `backup_location` as `pre-restore-<date>.sql.gz`. A restore started by mistake can be undone with:
 
     gunzip -c <backup_location>/pre-restore-<date>.sql.gz | mysql -u<user> -p <database>
 
 Feed data is overwritten in place and is not covered by that safety net.
 
-Emoncms `settings.ini` / `settings.php` are held in the backup for reference but
-are **not** restored. They contain the database credentials and paths of the
-system the backup was taken from, which are not necessarily correct on the
-system being restored to.
+`settings.ini` and `settings.php` are held in the backup for reference and are **not** restored. They hold the database credentials and paths of the system the backup was taken from.
 
-By default feed files present on this system but absent from the backup are left
-alone. Pass `--delete` to make the restore an exact mirror of the backup instead.
+Feed files present on this system but absent from the backup are left alone by default. Pass `--delete` to make this system an exact mirror of the backup.
 
-The restore refuses to run without `--yes` when it is not attached to a terminal,
-so it cannot destroy data from a cron job or a stray script without someone
-having asked for it. The Emoncms interface passes `--yes` after its own
-confirmation.
+The restore refuses to run without `--yes` when it is not attached to a terminal, so a cron job or a stray script cannot destroy data. The Emoncms interface passes `--yes` after its own confirmation.
 
-The same lock file is shared with `drive-backup.sh`, so a backup and a restore can
-never run at the same time.
+The lock file is shared with `drive-backup.sh`, so a backup and a restore never run at the same time.
 
 ### Backing up to a NAS
 
-Everything above works unchanged with an NFS or SMB share as the destination.
-Three things differ from a local disk:
+Everything above works with an NFS or SMB share as the destination. Four things differ from a local disk.
 
-**Ownership.** `rsync -a` preserves unix ownership and permissions. A CIFS share
-mounted with a fixed `uid`/`gid`/`file_mode`, and any FAT, exFAT or NTFS
-filesystem, cannot store them, and rsync then reports a failure for every file.
-`drive_backup_preserve_permissions="auto"` (the default) detects those
-filesystems and syncs without ownership. Nothing is lost by this:
-`drive-restore.sh` sets ownership correctly on the way back in regardless. Set it
-to `yes` or `no` to force the behaviour.
+**Ownership.** `rsync -a` preserves unix ownership and permissions. A CIFS share mounted with a fixed `uid`, `gid` or `file_mode`, and any FAT, exFAT or NTFS filesystem, cannot store them, and rsync then reports a failure for every file. `drive_backup_preserve_permissions="auto"` (the default) detects those filesystems and syncs without ownership. Nothing is lost. `drive-restore.sh` sets ownership on the way back in regardless. Set it to `yes` or `no` to force the behaviour.
 
-**Reachability.** A share can be mounted but unreachable, and on a hard NFS mount
-any access then blocks in uninterruptible IO indefinitely, which would hang the
-systemd unit forever. Both scripts probe a network destination first and give up
-after `drive_backup_probe_seconds` (default 20). Under the timer this counts as a
-skipped run, exactly like an unplugged USB drive. Mount NFS shares with `soft` as
-well, so that reads during the run fail rather than hang.
+**Reachability.** A share can be mounted and unreachable. On a hard NFS mount any access then blocks in uninterruptible IO indefinitely and the systemd unit hangs. Both scripts probe a network destination first and give up after `drive_backup_probe_seconds` (default 20). Under the timer this counts as a skipped run, like an unplugged USB drive. Mount NFS shares with `soft` as well, so that reads during the run fail instead of hanging.
 
-**Compression and restore points come from the filesystem.** Neither can be done
-to the mirror itself: compressing a feed file, or hard linking it into a dated
-snapshot directory, both mean rewriting the whole file on every run, which is
-exactly the cost this design exists to avoid. A copy on write filesystem gives
-both for free, because compression happens per extent below the append and a
-snapshot costs only the delta. Formatting the backup drive as btrfs and mounting
-it with `compress=zstd` is worth doing: measured on real PHPFina data, feed files
-compress by roughly 80%. This is what the interface's erase and format action
-does. The interface reports which of these the chosen drive supports.
+**Compression and restore points come from the filesystem.** Compressing a feed file, or hard linking it into a dated snapshot directory, means rewriting the whole file on every run, which is the cost this design avoids. A copy on write filesystem gives both for free. Compression happens per extent below the append and a snapshot costs only the delta. Format the backup drive as btrfs and mount it with `compress=zstd`. Measured on real PHPFina data, feed files compress by about 80%. This is what the interface's erase and format action does. The interface reports which of these the chosen drive supports.
 
-**Verify cost.** Verify reads every byte on both sides. Over gigabit ethernet a
-3 GB dataset is around half a minute of transfer; over wifi or 100 Mbit it is
-minutes. For a network destination consider running it monthly instead of weekly:
+**Verify cost.** Verify reads every byte on both sides. Over gigabit ethernet a 3 GB dataset is about half a minute of transfer. Over wifi or 100 Mbit it is minutes. For a network destination consider running it monthly:
 
     sudo systemctl edit emoncms-drive-backup-verify.timer
 
@@ -423,43 +273,23 @@ minutes. For a network destination consider running it monthly instead of weekly
     OnCalendar=
     OnCalendar=monthly
 
-The daily append run is unaffected: it transfers only the new readings, a few
-megabytes, so the saving over pushing a full archive across the network every
-night is far larger than on a local disk.
+The daily append run transfers only the new readings, a few megabytes.
 
 ### A drive that was unplugged and plugged back in
 
-Unplugging a USB drive and plugging it back in does not restore the mount. The
-drive comes back as a new device and the old mount is left behind, still listed
-by `findmnt` and still answering reads out of the kernel's caches, but failing
-every write with `Input/output error`. Nothing in the mount table says anything
-is wrong.
+Unplugging a USB drive and plugging it back in does not restore the mount. The drive comes back as a new device and the old mount is left behind. It is still listed by `findmnt` and still answers reads from the kernel's caches, and every write fails with `Input/output error`.
 
-Checking the marker file is not enough to catch this, because that check can be
-satisfied from cache. So before writing anything the script writes a few bytes to
-the destination, forces them out to the device with `sync -f`, reads them back and
-removes them. If that fails it stops and says so, with the two commands that fix
-it:
+The marker file check can be satisfied from cache, so before writing anything the script writes a few bytes to the destination, forces them to the device with `sync -f`, reads them back and removes them. If that fails it stops and prints the two commands that fix it:
 
     sudo umount -l /media/emoncms-backup
     sudo mount /media/emoncms-backup
 
-This is reported as a failed run rather than a skipped one, even under
-`--if-mounted`. A drive that is plugged in but not working is not the same as a
-drive that is absent: left alone it would never back up again, and nobody would
-be told.
+This is reported as a failed run, even under `--if-mounted`. A drive that is plugged in and not working would never back up again, and nobody would be told.
 
-The interface reports the same state separately from a disconnected drive, since
-"reconnect the drive" is the wrong advice here, and it is what the disconnected
-message says.
+The interface reports this state separately from a disconnected drive, since reconnecting the drive is the wrong advice here.
 
 ### Safety
 
-The script refuses to run if the destination is missing its marker file or is on
-the root filesystem, which is what happens when the USB drive is not mounted. Both
-checks exist to stop an unmounted drive quietly filling the system disk with a
-copy of the feed data. Set `drive_backup_allow_same_filesystem="yes"` to override
-the second check if you are deliberately backing up to the same disk.
+The script refuses to run if the destination is missing its marker file or is on the root filesystem, which is what happens when the USB drive is not mounted. Both checks stop an unmounted drive filling the system disk with a copy of the feed data. Set `drive_backup_allow_same_filesystem="yes"` to override the second check when deliberately backing up to the same disk.
 
-A feed removed from Emoncms is left in place on the backup and reported as an
-orphan rather than deleted.
+A feed removed from Emoncms is left in place on the backup and reported as an orphan.
