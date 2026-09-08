@@ -342,7 +342,19 @@ fi
 # Share the backup lock, a restore must never run while a backup is writing
 #-----------------------------------------------------------------------------------------------
 lock_file="/tmp/emoncms-drive-backup.lock"
-exec 200>"${lock_file}"
+# The lock is shared with drive-backup.sh, and between root, which the timers
+# and the interface run a backup as, and the web user, which the interface runs
+# a restore as. flock works on a descriptor opened for reading, so the file only
+# has to be readable by whoever comes second, not writable: a root-owned lock
+# left in /tmp by a timer run would refuse the web user a write open.
+if [ ! -e "${lock_file}" ]; then
+    ( umask 022; : > "${lock_file}" ) 2>/dev/null || true
+fi
+if [ ! -r "${lock_file}" ]; then
+    echo "ERROR: cannot read the lock file ${lock_file}"
+    exit 1
+fi
+exec 200<"${lock_file}"
 if ! flock -n 200; then
     echo "ERROR: a backup or restore is already running (lock ${lock_file})"
     exit 1
@@ -513,12 +525,23 @@ for engine in phpfina phpfiwa phptimeseries; do
     fi
 
     echo "-- ${engine}"
-    mkdir -p "${database_path}/${engine}"
 
-    out=$(rsync "${rsync_opts[@]}" "${drive_backup_path}/${engine}/" "${database_path}/${engine}/" 2>&1)
-    if [ $? -ne 0 ]; then
-        echo "Error: rsync of ${engine} failed"
+    # The feed directories belong to www-data, and from the interface this
+    # script runs as the web user, which cannot create files in them. Write
+    # as root, in the same way as the chown below, and set ownership after.
+    if [ -f "/.dockerenv" ]; then
+        mkdir -p "${database_path}/${engine}"
+        out=$(rsync "${rsync_opts[@]}" "${drive_backup_path}/${engine}/" "${database_path}/${engine}/" 2>&1)
+        rsync_rc=$?
+    else
+        sudo mkdir -p "${database_path}/${engine}"
+        out=$(sudo rsync "${rsync_opts[@]}" "${drive_backup_path}/${engine}/" "${database_path}/${engine}/" 2>&1)
+        rsync_rc=$?
+    fi
+    if [ ${rsync_rc} -ne 0 ]; then
+        echo "Error: rsync of ${engine} failed with code ${rsync_rc}"
         echo "${out}"
+        errors=true
     fi
     echo "${out}" | grep -E "^(Number of regular files transferred|Literal data|Matched data):" | sed 's/^/   /'
 
