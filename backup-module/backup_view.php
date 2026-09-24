@@ -18,8 +18,8 @@
           Restore  recovery, from any of the three sources this module reads:
                    the backup drive, an uploaded archive, or an old emonSD card.
 
-        Styling follows Modules/graph: the shared .card classes from
-        Theme/css/card.css on a whitesmoke page, Bootstrap buttons, and the
+        Styling follows Modules/graph: the shared .panel classes from
+        Theme/css/panel.css on a whitesmoke page, Bootstrap buttons, and the
         theme's own colour tokens rather than a palette of its own.
 
         Translated strings used from Javascript are collected into the T map
@@ -104,7 +104,7 @@
 ?>
 <style>
 /* The backup pages follow Modules/graph: a whitesmoke page holding white cards
-   from Theme/css/card.css, Bootstrap buttons and a blue accent. Colours come
+   from Theme/css/panel.css, Bootstrap buttons and a blue accent. Colours come
    from the theme tokens, so only the status palette is defined here. */
 body { background-color: var(--bg-body); }
 .content-container { max-width: 1000px; }
@@ -131,13 +131,13 @@ body { background-color: var(--bg-body); }
 .backup-page .mono { font-family: var(--font-mono); font-size: var(--font-sm); }
 
 /* Card headers here label a section, they do not collapse it */
-.backup-page .card-header { cursor: default; }
-.backup-page .card-header:hover { background-color: var(--bg-card-header); }
-.backup-page .card-header.is-toggle { cursor: pointer; }
-.backup-page .card-header.is-toggle:hover { background-color: var(--bg-card-header-hover); }
-.backup-page .card-header .bk-toggle { font-size: var(--font-2xs); color: var(--accent); white-space: nowrap; }
-.backup-page .card-header .btn { margin-left: auto; }
-.backup-page .card-body { padding: 1rem; }
+.backup-page .panel-header { cursor: default; }
+.backup-page .panel-header:hover { background-color: var(--bg-card-header); }
+.backup-page .panel-header.is-toggle { cursor: pointer; }
+.backup-page .panel-header.is-toggle:hover { background-color: var(--bg-card-header-hover); }
+.backup-page .panel-header .bk-toggle { font-size: var(--font-2xs); color: var(--accent); white-space: nowrap; }
+.backup-page .panel-header .btn { margin-left: auto; }
+.backup-page .panel-body { padding: 1rem; }
 
 /* Sub-heading within a card body */
 .backup-page .bk-subhead {
@@ -255,15 +255,15 @@ body { background-color: var(--bg-body); }
 .bk-actions .btn { margin: 0; }
 
 /* ==========================================================================
-   TABLES — card.css styles these. Columns size to their content, and the row
+   TABLES — panel.css styles these. Columns size to their content, and the row
    rule it draws is a light-on-dark one that leaves nothing behind here.
    ========================================================================== */
-.backup-page .card table { table-layout: auto; border-top: 1px solid var(--border); }
-.backup-page .card table td { border-bottom: 1px solid var(--border); }
-.backup-page .card table tr:last-child td { border-bottom: none; }
-.backup-page .card table td.right,
-.backup-page .card table th.right { text-align: right; }
-.backup-page .card table .btn { margin: 0; }
+.backup-page .panel table { table-layout: auto; border-top: 1px solid var(--border); }
+.backup-page .panel table td { border-bottom: 1px solid var(--border); }
+.backup-page .panel table tr:last-child td { border-bottom: none; }
+.backup-page .panel table td.right,
+.backup-page .panel table th.right { text-align: right; }
+.backup-page .panel table .btn { margin: 0; }
 
 /* ==========================================================================
    LOG, DISCLOSURES AND NOTICES
@@ -349,13 +349,13 @@ body { background-color: var(--bg-body); }
         <!-- Switched off in config.cfg. Nothing drive related is offered, and
              nothing drive related is asked of the server: the controller refuses
              every drive action, and the scripts refuse again underneath it. -->
-        <div class="card">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name"><?php echo tr("Backup to an attached drive"); ?></span>
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-accent"></span>
+                <span class="panel-name"><?php echo tr("Backup to an attached drive"); ?></span>
                 <span class="bk-badge grey"><?php echo tr("turned off"); ?></span>
             </div>
-            <div class="card-body">
+            <div class="panel-body">
                 <p class="muted"><?php echo tr("Emoncms can keep a copy of your data on a USB drive or a NAS share, adding only what is new each day. Doing that runs as root: it mounts drives, edits /etc/fstab and can format a disk. It is turned on automatically on a Raspberry Pi and left off everywhere else, so that it cannot be reached where it is not wanted."); ?></p>
                 <p class="muted"><?php echo tr("To use it on this system, set"); ?>
                     <span class="mono">drive_backup_enabled="yes"</span>
@@ -370,13 +370,13 @@ body { background-color: var(--bg-body); }
              Where the copy goes, when it last ran, when it runs next and what
              can be done to it are one subject, so they are one card rather than
              four. The explanations sit with what they explain. -->
-        <div class="card" v-if="status.available">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name"><?php echo tr("Backup drive"); ?></span>
+        <div class="panel" v-if="status.available">
+            <div class="panel-header">
+                <span class="panel-accent"></span>
+                <span class="panel-name"><?php echo tr("Backup drive"); ?></span>
                 <button class="btn btn-small" :disabled="busy" @click="change_drive = !change_drive"><?php echo tr("Change drive"); ?></button>
             </div>
-            <div class="card-body">
+            <div class="panel-body">
                 <div class="mono">{{ status.path }}</div>
                 <div class="muted mono" v-if="status.drive">{{ status.drive.source }} &middot; {{ status.drive.fstype }}</div>
 
@@ -471,16 +471,16 @@ body { background-color: var(--bg-body); }
              setting up, and each row offers whatever that drive needs next.
              Shown when there is nothing working, and when Change drive is
              pressed, rather than existing twice. -->
-        <div class="card" v-if="!status.available || change_drive">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name" v-if="change_drive"><?php echo tr("Change backup drive"); ?></span>
-                <span class="card-name" v-else-if="!status.configured"><?php echo tr("Set up a backup drive"); ?></span>
-                <span class="card-name" v-else-if="status.unresponsive"><?php echo tr("Backup drive is not responding"); ?></span>
-                <span class="card-name" v-else><?php echo tr("Backup drive not available"); ?></span>
+        <div class="panel" v-if="!status.available || change_drive">
+            <div class="panel-header">
+                <span class="panel-accent"></span>
+                <span class="panel-name" v-if="change_drive"><?php echo tr("Change backup drive"); ?></span>
+                <span class="panel-name" v-else-if="!status.configured"><?php echo tr("Set up a backup drive"); ?></span>
+                <span class="panel-name" v-else-if="status.unresponsive"><?php echo tr("Backup drive is not responding"); ?></span>
+                <span class="panel-name" v-else><?php echo tr("Backup drive not available"); ?></span>
                 <button class="btn btn-small" :disabled="busy || scanning" @click="scan()">{{ scanning ? T.scanning : T.scan }}</button>
             </div>
-            <div class="card-body">
+            <div class="panel-body">
                 <p class="muted" v-if="status.unresponsive && !change_drive">
                     <span class="mono">{{ status.path }}</span>
                     <?php echo tr("is mounted but every read and write to it fails. Unplug the drive and plug it back in, then run a backup to check."); ?>
@@ -581,12 +581,12 @@ body { background-color: var(--bg-body); }
         </div>
 
         <!-- What can actually be recovered, which is the proof the backup works -->
-        <div class="card" v-if="status.available">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name"><?php echo tr("Restore points"); ?></span>
+        <div class="panel" v-if="status.available">
+            <div class="panel-header">
+                <span class="panel-accent"></span>
+                <span class="panel-name"><?php echo tr("Restore points"); ?></span>
             </div>
-            <div class="card-body">
+            <div class="panel-body">
                 <p class="muted"><?php echo tr("Dated copies of the database kept on the drive. Feed data is kept at its latest state, not per date."); ?></p>
                 <p class="muted" v-if="!(status.sql && status.sql.length)"><?php echo tr("None yet."); ?></p>
             </div>
@@ -612,12 +612,12 @@ body { background-color: var(--bg-body); }
              rather than sitting in the middle of it -->
         <div class="bk-section"><?php echo tr("Portable copy"); ?></div>
 
-        <div class="card">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name"><?php echo tr("Download a portable copy"); ?></span>
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-accent"></span>
+                <span class="panel-name"><?php echo tr("Download a portable copy"); ?></span>
             </div>
-            <div class="card-body">
+            <div class="panel-body">
                 <p class="muted"><?php echo tr("One compressed file holding everything, to keep off site or move to another emonPi or emonBase. It rewrites all of your data each time, so use it now and then rather than daily."); ?></p>
                 <div class="bk-actions">
                     <button class="btn" :disabled="busy" @click="run('start','exportlog')"><?php echo tr("Build archive"); ?></button>
@@ -638,10 +638,10 @@ body { background-color: var(--bg-body); }
 
         <p class="muted"><?php echo tr("Choose where to restore from."); ?></p>
 
-        <div class="card">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name"><?php echo tr("From the backup drive"); ?></span>
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-accent"></span>
+                <span class="panel-name"><?php echo tr("From the backup drive"); ?></span>
                 <?php if (!$drive_backup_enabled) { ?>
                 <span class="bk-badge grey"><?php echo tr("turned off"); ?></span>
                 <?php } else { ?>
@@ -649,7 +649,7 @@ body { background-color: var(--bg-body); }
                 <span class="bk-badge grey" v-else><?php echo tr("Not connected"); ?></span>
                 <?php } ?>
             </div>
-            <div class="card-body">
+            <div class="panel-body">
                 <?php if (!$drive_backup_enabled) { ?>
                 <p class="muted"><?php echo tr("Backup to an attached drive is turned off on this system, so there is no drive to restore from. The Backup tab says how to turn it on."); ?></p>
                 <?php } else { ?>
@@ -694,12 +694,12 @@ body { background-color: var(--bg-body); }
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name"><?php echo tr("From an archive file"); ?></span>
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-accent"></span>
+                <span class="panel-name"><?php echo tr("From an archive file"); ?></span>
             </div>
-            <div class="card-body">
+            <div class="panel-body">
                 <p class="muted"><?php echo tr("Upload a"); ?> <span class="mono">.tar.gz</span>
                     <?php echo tr("archive downloaded from this or another Emoncms."); ?></p>
                 <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
@@ -718,12 +718,12 @@ body { background-color: var(--bg-body); }
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header">
-                <span class="card-accent"></span>
-                <span class="card-name"><?php echo tr("From an old emonSD card"); ?></span>
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-accent"></span>
+                <span class="panel-name"><?php echo tr("From an old emonSD card"); ?></span>
             </div>
-            <div class="card-body">
+            <div class="panel-body">
                 <p class="muted"><?php echo tr("Put the old emonPi or emonBase SD card in a USB card reader and plug it in. The data is read straight from the card, with no need to export an archive first."); ?></p>
                 <p class="muted"><i><?php echo tr("Note: Update Emoncms and EmonHub to the latest version before importing."); ?></i></p>
                 <label class="bk-check">
@@ -742,10 +742,10 @@ body { background-color: var(--bg-body); }
     </div>
 
     <!-- Shared activity log -->
-    <div class="card" v-if="log_text !== ''">
-        <div class="card-header is-toggle" @click="show_log = !show_log">
-            <span class="card-accent"></span>
-            <span class="card-name">{{ log_title }}</span>
+    <div class="panel" v-if="log_text !== ''">
+        <div class="panel-header is-toggle" @click="show_log = !show_log">
+            <span class="panel-accent"></span>
+            <span class="panel-name">{{ log_title }}</span>
             <span class="bk-badge" v-if="busy"><?php echo tr("running"); ?></span>
             <!-- Whether the run worked. The log ends in a line that says so, but
                  that is the one line nobody scrolls down to read. -->
@@ -755,7 +755,7 @@ body { background-color: var(--bg-body); }
             <span class="bk-badge danger" v-else-if="log_result == 'notstarted'">{{ T.not_started }}</span>
             <span class="bk-toggle">{{ show_log ? "\u25BE " + T.hide_log : "\u25B8 " + T.show_log }}</span>
         </div>
-        <div class="card-body" v-show="show_log">
+        <div class="panel-body" v-show="show_log">
             <div class="bk-notice danger" v-if="log_result == 'notstarted'">
                 <b><?php echo tr("service-runner did not start this action."); ?></b>
                 <?php echo tr("It only runs actions on its whitelist, and the backup drive actions were added to Emoncms core recently. Update Emoncms, then restart service-runner:"); ?>
