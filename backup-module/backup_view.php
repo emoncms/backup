@@ -127,7 +127,7 @@ body { background-color: var(--bg-body); }
 .backup-page [v-cloak] { display: none; }
 .backup-page p { margin: 0 0 0.6rem 0; }
 .backup-page p:last-child { margin-bottom: 0; }
-.backup-page .muted { color: var(--text-secondary); }
+.backup-page .text-muted { color: var(--text-secondary) !important; }
 .backup-page .mono { font-family: var(--font-mono); font-size: var(--font-sm); }
 
 /* Card headers here label a section, they do not collapse it */
@@ -242,6 +242,7 @@ body { background-color: var(--bg-body); }
 .bk-cap.no { color: var(--text-secondary); }
 
 .bk-bar {
+    box-sizing: content-box;
     height: 8px;
     border-radius: 4px;
     background-color: var(--bg-badge);
@@ -269,6 +270,7 @@ body { background-color: var(--bg-body); }
    LOG, DISCLOSURES AND NOTICES
    ========================================================================== */
 .bk-log {
+    box-sizing: content-box;
     margin: 0;
     padding: 0.7rem 0.9rem;
     border: 1px solid var(--border);
@@ -327,8 +329,8 @@ body { background-color: var(--bg-body); }
 
     <div class="bk-switcher">
         <div class="btn-group">
-            <button class="btn" :class="{active: tab=='backup'}" @click="show('backup')"><?php echo tr("Backup"); ?></button>
-            <button class="btn" :class="{active: tab=='restore'}" @click="show('restore')"><?php echo tr("Restore"); ?></button>
+            <button class="btn btn-default" :class="{active: tab=='backup'}" @click="show('backup')"><?php echo tr("Backup"); ?></button>
+            <button class="btn btn-default" :class="{active: tab=='restore'}" @click="show('restore')"><?php echo tr("Restore"); ?></button>
         </div>
     </div>
 
@@ -339,7 +341,7 @@ body { background-color: var(--bg-body); }
             <div class="dot"></div>
             <div>
                 <div class="headline">{{ hero.headline }}</div>
-                <div class="detail muted">{{ hero.detail }}</div>
+                <div class="detail text-muted">{{ hero.detail }}</div>
             </div>
         </div>
 
@@ -356,8 +358,8 @@ body { background-color: var(--bg-body); }
                 <span class="bk-badge grey"><?php echo tr("turned off"); ?></span>
             </div>
             <div class="panel-body">
-                <p class="muted"><?php echo tr("Emoncms can keep a copy of your data on a USB drive or a NAS share, adding only what is new each day. Doing that runs as root: it mounts drives, edits /etc/fstab and can format a disk. It is turned on automatically on a Raspberry Pi and left off everywhere else, so that it cannot be reached where it is not wanted."); ?></p>
-                <p class="muted"><?php echo tr("To use it on this system, set"); ?>
+                <p class="text-muted"><?php echo tr("Emoncms can keep a copy of your data on a USB drive or a NAS share, adding only what is new each day. Doing that runs as root: it mounts drives, edits /etc/fstab and can format a disk. It is turned on automatically on a Raspberry Pi and left off everywhere else, so that it cannot be reached where it is not wanted."); ?></p>
+                <p class="text-muted"><?php echo tr("To use it on this system, set"); ?>
                     <span class="mono">drive_backup_enabled="yes"</span>
                     <?php echo tr("in"); ?> <span class="mono"><?php echo htmlspecialchars($config_path); ?></span>,
                     <?php echo tr("run"); ?> <span class="mono">./install.sh</span>
@@ -374,15 +376,15 @@ body { background-color: var(--bg-body); }
             <div class="panel-header">
                 <span class="panel-accent"></span>
                 <span class="panel-name"><?php echo tr("Backup drive"); ?></span>
-                <button class="btn btn-small" :disabled="busy" @click="change_drive = !change_drive"><?php echo tr("Change drive"); ?></button>
+                <button class="btn btn-default btn-sm" :disabled="busy" @click="change_drive = !change_drive"><?php echo tr("Change drive"); ?></button>
             </div>
             <div class="panel-body">
                 <div class="mono">{{ status.path }}</div>
-                <div class="muted mono" v-if="status.drive">{{ status.drive.source }} &middot; {{ status.drive.fstype }}</div>
+                <div class="text-muted mono" v-if="status.drive">{{ status.drive.source }} &middot; {{ status.drive.fstype }}</div>
 
                 <div v-if="status.total_mb > 0">
                     <div class="bk-bar"><div :style="{width: used_percent + '%'}"></div></div>
-                    <div class="muted">
+                    <div class="text-muted">
                         {{ gb(status.total_mb - status.free_mb) }} <?php echo tr("used of"); ?> {{ gb(status.total_mb) }}
                         &middot; {{ gb(status.free_mb) }} <?php echo tr("free"); ?>
                     </div>
@@ -392,38 +394,38 @@ body { background-color: var(--bg-body); }
                     <div class="bk-row">
                         <div class="k"><?php echo tr("Last backup"); ?></div>
                         <div class="v" v-if="status.status">{{ local_time(status.status.last_run) }}
-                            <span class="muted">({{ ago(status.status.last_run) }})</span></div>
-                        <div class="v muted" v-else><?php echo tr("none yet"); ?></div>
+                            <span class="text-muted">({{ ago(status.status.last_run) }})</span></div>
+                        <div class="v text-muted" v-else><?php echo tr("none yet"); ?></div>
                     </div>
                     <div class="bk-row" v-if="status.status">
                         <div class="k"><?php echo tr("Written"); ?></div>
                         <div class="v">{{ bytes(status.status.bytes_written) }}
-                            <span class="muted"><?php echo tr("in"); ?> {{ duration(status.status.duration_seconds) }}</span></div>
+                            <span class="text-muted"><?php echo tr("in"); ?> {{ duration(status.status.duration_seconds) }}</span></div>
                     </div>
                     <div class="bk-row" v-if="status.status && (status.status.files_repaired || status.status.files_realigned)">
                         <div class="k"><?php echo tr("Files repaired"); ?></div>
                         <div class="v">{{ status.status.files_repaired }}
-                            <span class="muted">/ {{ status.status.files_realigned }} <?php echo tr("realigned"); ?></span></div>
+                            <span class="text-muted">/ {{ status.status.files_realigned }} <?php echo tr("realigned"); ?></span></div>
                     </div>
                     <div class="bk-row" v-if="status.status && status.status.orphans">
                         <div class="k"><?php echo tr("Orphaned files"); ?></div>
                         <div class="v">{{ status.status.orphans }}
-                            <span class="muted"><?php echo tr("on the drive, no longer in Emoncms"); ?></span></div>
+                            <span class="text-muted"><?php echo tr("on the drive, no longer in Emoncms"); ?></span></div>
                     </div>
                     <div class="bk-row" v-if="status.schedule && status.schedule.scheduled !== null">
                         <div class="k"><?php echo tr("Next backup"); ?></div>
                         <div class="v" v-if="status.schedule.scheduled && status.schedule.next_run">{{ local_time_ts(status.schedule.next_run) }}</div>
                         <div class="v" v-else-if="status.schedule.scheduled"><?php echo tr("daily"); ?></div>
-                        <div class="v muted" v-else><?php echo tr("not scheduled, so this only happens when you press the button"); ?></div>
+                        <div class="v text-muted" v-else><?php echo tr("not scheduled, so this only happens when you press the button"); ?></div>
                     </div>
                 </div>
 
                 <div class="bk-actions bk-actions-spaced">
                     <button class="btn btn-primary" :disabled="busy" @click="run('drivebackup','drivebackuplog')"><?php echo tr("Back up now"); ?></button>
-                    <button class="btn" :disabled="busy" @click="run('drivebackupverify','drivebackupverifylog')"><?php echo tr("Verify and repair"); ?></button>
+                    <button class="btn btn-default" :disabled="busy" @click="run('drivebackupverify','drivebackupverifylog')"><?php echo tr("Verify and repair"); ?></button>
                     <button class="btn btn-primary" v-if="status.schedule && status.schedule.scheduled === false"
                             :disabled="busy" @click="set_schedule(true)"><?php echo tr("Turn on daily backup"); ?></button>
-                    <button class="btn" v-if="status.schedule && status.schedule.scheduled === true"
+                    <button class="btn btn-default" v-if="status.schedule && status.schedule.scheduled === true"
                             :disabled="busy" @click="set_schedule(false)"><?php echo tr("Turn off daily backup"); ?></button>
                 </div>
 
@@ -478,24 +480,24 @@ body { background-color: var(--bg-body); }
                 <span class="panel-name" v-else-if="!status.configured"><?php echo tr("Set up a backup drive"); ?></span>
                 <span class="panel-name" v-else-if="status.unresponsive"><?php echo tr("Backup drive is not responding"); ?></span>
                 <span class="panel-name" v-else><?php echo tr("Backup drive not available"); ?></span>
-                <button class="btn btn-small" :disabled="busy || scanning" @click="scan()">{{ scanning ? T.scanning : T.scan }}</button>
+                <button class="btn btn-default btn-sm" :disabled="busy || scanning" @click="scan()">{{ scanning ? T.scanning : T.scan }}</button>
             </div>
             <div class="panel-body">
-                <p class="muted" v-if="status.unresponsive && !change_drive">
+                <p class="text-muted" v-if="status.unresponsive && !change_drive">
                     <span class="mono">{{ status.path }}</span>
                     <?php echo tr("is mounted but every read and write to it fails. Unplug the drive and plug it back in, then run a backup to check."); ?>
                 </p>
-                <p class="muted" v-else-if="status.configured && !change_drive">
+                <p class="text-muted" v-else-if="status.configured && !change_drive">
                     <?php echo tr("Nothing is mounted at"); ?> <span class="mono">{{ status.path }}</span>.
                     <?php echo tr("Reconnect it, or pick another drive."); ?>
                 </p>
-                <p class="muted" v-else>
+                <p class="text-muted" v-else>
                     <?php echo tr("Emoncms keeps a copy of your data on an attached drive. Plug in a USB drive and pick it below."); ?>
                 </p>
-                <p class="muted" v-if="!choices.length">
+                <p class="text-muted" v-if="!choices.length">
                     <?php echo tr("No drives found. Plug one in, then press Scan for drives."); ?>
                 </p>
-                <p class="muted" v-if="choices_needing_setup">
+                <p class="text-muted" v-if="choices_needing_setup">
                     <?php echo tr("A drive that is not set up yet will be mounted, added to /etc/fstab so it comes back after a reboot, and used from then on."); ?>
                     <?php echo tr("Any drive can instead be erased and formatted as btrfs, which compresses feed data, checks every block it reads back and can keep dated copies of the backup."); ?>
                 </p>
@@ -511,22 +513,22 @@ body { background-color: var(--bg-body); }
                 <tbody>
                     <template v-for="c in choices" :key="c.key">
                     <tr>
-                        <td>{{ c.name }}<br><span class="muted mono">{{ c.detail }}</span></td>
+                        <td>{{ c.name }}<br><span class="text-muted mono">{{ c.detail }}</span></td>
                         <td><span class="bk-badge" :class="{grey: c.kind != 'removable'}">{{ kind_label(c) }}</span></td>
                         <td>{{ c.space }}</td>
                         <td class="right">
-                            <button class="btn btn-small btn-primary" v-if="c.mounted"
+                            <button class="btn btn-sm btn-primary" v-if="c.mounted"
                                     :disabled="busy" @click="pick(c.drive)">
                                 {{ c.drive.initialised ? T.use_again : T.use_this_drive }}
                             </button>
-                            <span class="muted" v-else-if="c.device.state == 'nomedia'"><?php echo tr("Insert a card, then scan again"); ?></span>
+                            <span class="text-muted" v-else-if="c.device.state == 'nomedia'"><?php echo tr("Insert a card, then scan again"); ?></span>
                             <template v-else-if="c.device.state != 'nofilesystem'">
-                                <button class="btn btn-small btn-primary"
+                                <button class="btn btn-sm btn-primary"
                                         :disabled="busy" @click="ask_setup(c.device, 'mount')"><?php echo tr("Set up this drive"); ?></button>
-                                <button class="btn btn-small"
+                                <button class="btn btn-default btn-sm"
                                         :disabled="busy" @click="ask_setup(c.device, 'format')"><?php echo tr("Erase and format"); ?></button>
                             </template>
-                            <button class="btn btn-small btn-danger" v-else
+                            <button class="btn btn-sm btn-danger" v-else
                                     :disabled="busy" @click="ask_setup(c.device, 'format')"><?php echo tr("Format and set up"); ?></button>
                         </td>
                     </tr>
@@ -545,10 +547,10 @@ body { background-color: var(--bg-body); }
                                             <?php echo tr("so it comes back after a reboot"); ?></li>
                                         <li><?php echo tr("use it for backups from now on"); ?></li>
                                     </ul>
-                                    <p class="muted"><?php echo tr("Nothing on the drive is erased. The current /etc/fstab is saved first, and put back if the drive will not mount."); ?></p>
+                                    <p class="text-muted"><?php echo tr("Nothing on the drive is erased. The current /etc/fstab is saved first, and put back if the drive will not mount."); ?></p>
                                 </div>
                                 <div class="bk-actions">
-                                    <button class="btn" @click="cancel_setup()"><?php echo tr("Cancel"); ?></button>
+                                    <button class="btn btn-default" @click="cancel_setup()"><?php echo tr("Cancel"); ?></button>
                                     <button class="btn btn-primary" :disabled="busy" @click="do_mount(c.device)"><?php echo tr("Mount and use this drive"); ?></button>
                                 </div>
                             </div>
@@ -564,11 +566,11 @@ body { background-color: var(--bg-body); }
                                        <?php echo tr("The backup on it will be lost. To carry on using it as it is, choose Set up this drive instead."); ?></p>
                                     <p><?php echo tr("Check this is the drive you mean. Emoncms will not offer a drive the system runs from, but it cannot tell whether this one holds something you want."); ?></p>
                                 </div>
-                                <p class="muted"><?php echo tr("btrfs compresses feed data as it is written, checks every block it reads back so damage on the drive is detected, and can keep dated copies of the backup."); ?></p>
+                                <p class="text-muted"><?php echo tr("btrfs compresses feed data as it is written, checks every block it reads back so damage on the drive is detected, and can keep dated copies of the backup."); ?></p>
                                 <p><?php echo tr("Type ERASE to confirm:"); ?></p>
                                 <input type="text" v-model="erase_text" placeholder="ERASE">
                                 <div class="bk-actions">
-                                    <button class="btn" @click="cancel_setup()"><?php echo tr("Cancel"); ?></button>
+                                    <button class="btn btn-default" @click="cancel_setup()"><?php echo tr("Cancel"); ?></button>
                                     <button class="btn btn-danger" :disabled="busy || erase_text != 'ERASE'"
                                             @click="do_format_mount(c.device)"><?php echo tr("Erase, format and use this drive"); ?></button>
                                 </div>
@@ -587,8 +589,8 @@ body { background-color: var(--bg-body); }
                 <span class="panel-name"><?php echo tr("Restore points"); ?></span>
             </div>
             <div class="panel-body">
-                <p class="muted"><?php echo tr("Dated copies of the database kept on the drive. Feed data is kept at its latest state, not per date."); ?></p>
-                <p class="muted" v-if="!(status.sql && status.sql.length)"><?php echo tr("None yet."); ?></p>
+                <p class="text-muted"><?php echo tr("Dated copies of the database kept on the drive. Feed data is kept at its latest state, not per date."); ?></p>
+                <p class="text-muted" v-if="!(status.sql && status.sql.length)"><?php echo tr("None yet."); ?></p>
             </div>
             <table v-if="status.sql && status.sql.length">
                 <thead><tr>
@@ -618,12 +620,12 @@ body { background-color: var(--bg-body); }
                 <span class="panel-name"><?php echo tr("Download a portable copy"); ?></span>
             </div>
             <div class="panel-body">
-                <p class="muted"><?php echo tr("One compressed file holding everything, to keep off site or move to another emonPi or emonBase. It rewrites all of your data each time, so use it now and then rather than daily."); ?></p>
+                <p class="text-muted"><?php echo tr("One compressed file holding everything, to keep off site or move to another emonPi or emonBase. It rewrites all of your data each time, so use it now and then rather than daily."); ?></p>
                 <div class="bk-actions">
-                    <button class="btn" :disabled="busy" @click="run('start','exportlog')"><?php echo tr("Build archive"); ?></button>
-                    <a class="btn" v-if="archive_ready" href="<?php echo $path; ?>backup/download"><?php echo tr("Download"); ?>&nbsp;<span class="mono">{{ archive_filename }}</span></a>
+                    <button class="btn btn-default" :disabled="busy" @click="run('start','exportlog')"><?php echo tr("Build archive"); ?></button>
+                    <a class="btn btn-default" v-if="archive_ready" href="<?php echo $path; ?>backup/download"><?php echo tr("Download"); ?>&nbsp;<span class="mono">{{ archive_filename }}</span></a>
                 </div>
-                <p class="muted bk-hint" v-if="!archive_ready"><?php echo tr("The download link appears here once the archive is built."); ?></p>
+                <p class="text-muted bk-hint" v-if="!archive_ready"><?php echo tr("The download link appears here once the archive is built."); ?></p>
             </div>
         </div>
     </div>
@@ -636,7 +638,7 @@ body { background-color: var(--bg-body); }
             <?php echo tr("Inputs, feeds, dashboards and feed data are all replaced by the copy you restore from."); ?>
         </div>
 
-        <p class="muted"><?php echo tr("Choose where to restore from."); ?></p>
+        <p class="text-muted"><?php echo tr("Choose where to restore from."); ?></p>
 
         <div class="panel">
             <div class="panel-header">
@@ -651,9 +653,9 @@ body { background-color: var(--bg-body); }
             </div>
             <div class="panel-body">
                 <?php if (!$drive_backup_enabled) { ?>
-                <p class="muted"><?php echo tr("Backup to an attached drive is turned off on this system, so there is no drive to restore from. The Backup tab says how to turn it on."); ?></p>
+                <p class="text-muted"><?php echo tr("Backup to an attached drive is turned off on this system, so there is no drive to restore from. The Backup tab says how to turn it on."); ?></p>
                 <?php } else { ?>
-                <p class="muted"><?php echo tr("The copy kept up to date by the daily backup."); ?></p>
+                <p class="text-muted"><?php echo tr("The copy kept up to date by the daily backup."); ?></p>
 
                 <div v-if="status.available && status.sql && status.sql.length">
                     <div class="bk-rows">
@@ -669,7 +671,7 @@ body { background-color: var(--bg-body); }
                         </div>
                         <div class="bk-row">
                             <div class="k"><?php echo tr("Feed data"); ?></div>
-                            <div class="v muted"><?php echo tr("restored to the state of the last backup, whichever restore point you choose"); ?></div>
+                            <div class="v text-muted"><?php echo tr("restored to the state of the last backup, whichever restore point you choose"); ?></div>
                         </div>
                     </div>
 
@@ -682,14 +684,14 @@ body { background-color: var(--bg-body); }
                         <span><b><?php echo tr("I understand this overwrites all Emoncms data on this system"); ?></b></span>
                     </label>
 
-                    <p class="muted"><?php echo tr("The current database is saved first, so a restore started by mistake can be undone. Feed data is overwritten in place and cannot be recovered this way."); ?></p>
+                    <p class="text-muted"><?php echo tr("The current database is saved first, so a restore started by mistake can be undone. Feed data is overwritten in place and cannot be recovered this way."); ?></p>
 
                     <div class="bk-actions">
                         <button class="btn btn-danger" :disabled="!restore_confirm || busy" @click="do_restore()"><?php echo tr("Restore from drive"); ?></button>
                     </div>
                 </div>
-                <p class="muted" v-else-if="status.available"><?php echo tr("No restore points on the drive yet."); ?></p>
-                <p class="muted" v-else><?php echo tr("Connect the backup drive to restore from it."); ?></p>
+                <p class="text-muted" v-else-if="status.available"><?php echo tr("No restore points on the drive yet."); ?></p>
+                <p class="text-muted" v-else><?php echo tr("Connect the backup drive to restore from it."); ?></p>
                 <?php } ?>
             </div>
         </div>
@@ -700,7 +702,7 @@ body { background-color: var(--bg-body); }
                 <span class="panel-name"><?php echo tr("From an archive file"); ?></span>
             </div>
             <div class="panel-body">
-                <p class="muted"><?php echo tr("Upload a"); ?> <span class="mono">.tar.gz</span>
+                <p class="text-muted"><?php echo tr("Upload a"); ?> <span class="mono">.tar.gz</span>
                     <?php echo tr("archive downloaded from this or another Emoncms."); ?></p>
                 <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
                     <input type="file" name="file" id="file" accept=".gz">
@@ -724,8 +726,8 @@ body { background-color: var(--bg-body); }
                 <span class="panel-name"><?php echo tr("From an old emonSD card"); ?></span>
             </div>
             <div class="panel-body">
-                <p class="muted"><?php echo tr("Put the old emonPi or emonBase SD card in a USB card reader and plug it in. The data is read straight from the card, with no need to export an archive first."); ?></p>
-                <p class="muted"><i><?php echo tr("Note: Update Emoncms and EmonHub to the latest version before importing."); ?></i></p>
+                <p class="text-muted"><?php echo tr("Put the old emonPi or emonBase SD card in a USB card reader and plug it in. The data is read straight from the card, with no need to export an archive first."); ?></p>
+                <p class="text-muted"><i><?php echo tr("Note: Update Emoncms and EmonHub to the latest version before importing."); ?></i></p>
                 <label class="bk-check">
                     <input type="checkbox" v-model="sd_confirm">
                     <span><b><?php echo tr("I understand this overwrites all Emoncms data on this system"); ?></b></span>
