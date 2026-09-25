@@ -317,7 +317,6 @@ body { background-color: var(--bg-body); }
 .bk-check { display: flex; align-items: flex-start; gap: 0.5rem; margin: 0.6rem 0; cursor: pointer; }
 .bk-check input { margin: 3px 0 0 0; flex-shrink: 0; }
 .backup-page input[type="checkbox"] { accent-color: var(--accent); }
-.backup-page select { margin-bottom: 0; }
 
 @media (max-width: 700px) {
     .bk-row { flex-direction: column; gap: 2px; }
@@ -568,7 +567,7 @@ body { background-color: var(--bg-body); }
                                 </div>
                                 <p class="text-muted"><?php echo tr("btrfs compresses feed data as it is written, checks every block it reads back so damage on the drive is detected, and can keep dated copies of the backup."); ?></p>
                                 <p><?php echo tr("Type ERASE to confirm:"); ?></p>
-                                <input type="text" v-model="erase_text" placeholder="ERASE">
+                                <input class="form-control input-220 mb-2" type="text" v-model="erase_text" placeholder="ERASE">
                                 <div class="bk-actions">
                                     <button class="btn btn-default" @click="cancel_setup()"><?php echo tr("Cancel"); ?></button>
                                     <button class="btn btn-danger" :disabled="busy || erase_text != 'ERASE'"
@@ -662,7 +661,7 @@ body { background-color: var(--bg-body); }
                         <div class="bk-row">
                             <div class="k"><?php echo tr("Restore point"); ?></div>
                             <div class="v">
-                                <select v-model="restore_sql" style="width:auto; max-width:100%">
+                                <select class="form-select input-auto" v-model="restore_sql" style="max-width:100%">
                                     <option v-for="s in status.sql" :key="s.period + s.name" :value="s.name">
                                         {{ snapshot_date(s.name) }} &middot; {{ s.period }} &middot; {{ s.size_mb }} MB
                                     </option>
@@ -705,7 +704,7 @@ body { background-color: var(--bg-body); }
                 <p class="text-muted"><?php echo tr("Upload a"); ?> <span class="mono">.tar.gz</span>
                     <?php echo tr("archive downloaded from this or another Emoncms."); ?></p>
                 <form action="<?php echo $path; ?>backup/upload" method="post" enctype="multipart/form-data">
-                    <input type="file" name="file" id="file" accept=".gz">
+                    <input class="form-control input-285" type="file" name="file" id="file" accept=".gz">
                     <div class="bk-actions" style="margin-top:0.6rem">
                         <input class="btn btn-danger" type="submit" name="submit" value="<?php echo tr("Upload and restore"); ?>">
                     </div>
