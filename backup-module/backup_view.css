@@ -1,7 +1,6 @@
 /* Backup page. Panels from Theme/css/panel.css on the page background, as graph.
    Colours come from the theme variables. Status colours are the alert set. */
-body { background-color: var(--bg-body); }
-.content-container { max-width: 1000px; }
+main.content-container:has(.backup-page) { max-width: 1000px; }
 
 .backup-page {
     --ok:            var(--bs-success-text-emphasis);
@@ -15,21 +14,20 @@ body { background-color: var(--bg-body); }
     --danger-border: var(--bs-danger-border-subtle);
 
     padding: 1rem 0 3rem 0;
-    color: var(--text-body);
+    color: var(--ec-value-color);
 }
 
-.backup-page [v-cloak] { display: none; }
 .backup-page p { margin: 0 0 0.6rem 0; }
 .backup-page p:last-child { margin-bottom: 0; }
-.backup-page .text-muted { color: var(--text-secondary) !important; }
+.backup-page .text-muted { color: var(--ec-text-secondary) !important; }
 .backup-page .mono { font-family: var(--font-mono); font-size: var(--font-sm); }
 
 /* Card headers here label a section, they do not collapse it */
 .backup-page .panel-header { cursor: default; }
-.backup-page .panel-header:hover { background-color: var(--bg-card-header); }
+.backup-page .panel-header:hover { background-color: var(--ec-header-bg); }
 .backup-page .panel-header.is-toggle { cursor: pointer; }
-.backup-page .panel-header.is-toggle:hover { background-color: var(--bg-card-header-hover); }
-.backup-page .panel-header .bk-toggle { font-size: var(--font-2xs); color: var(--accent); white-space: nowrap; }
+.backup-page .panel-header.is-toggle:hover { background-color: var(--ec-header-hover-bg); }
+.backup-page .panel-header .bk-toggle { font-size: var(--font-2xs); color: var(--bs-primary); white-space: nowrap; }
 .backup-page .panel-header .btn { margin-left: auto; }
 .backup-page .panel-body { padding: 1rem; }
 
@@ -40,7 +38,7 @@ body { background-color: var(--bg-body); }
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-secondary);
+    color: var(--ec-text-secondary);
 }
 .backup-page .bk-subhead:first-child { margin-top: 0; }
 
@@ -53,7 +51,7 @@ body { background-color: var(--bg-body); }
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-secondary);
+    color: var(--ec-text-secondary);
 }
 .backup-page .bk-section:first-child { margin-top: 0.4rem; }
 
@@ -73,8 +71,8 @@ body { background-color: var(--bg-body); }
 .bk-switcher .btn-group { display: inline-flex; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .bk-switcher .btn { padding-inline: 1.4rem; }
 .bk-switcher .btn.active {
-    background: var(--accent);
-    border-color: var(--accent);
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
     color: #fff;
     box-shadow: none;
     text-shadow: none;
@@ -92,10 +90,10 @@ body { background-color: var(--bg-body); }
     border: 1px solid var(--border);
     border-left-width: 4px;
     border-radius: var(--radius-card);
-    background-color: var(--bg-card);
+    background-color: var(--bs-body-bg);
 }
 .bk-hero .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
-.bk-hero .headline { font-size: var(--font-subheading); font-weight: 600; color: var(--text-primary); }
+.bk-hero .headline { font-size: var(--font-subheading); font-weight: 600; color: var(--bs-emphasis-color); }
 .bk-hero .detail { font-size: var(--font-sm); margin-top: 2px; }
 .bk-hero.ok       { background-color: var(--ok-bg);     border-color: var(--ok-border);     border-left-color: var(--ok); }
 .bk-hero.ok .dot  { background-color: var(--ok); }
@@ -104,36 +102,23 @@ body { background-color: var(--bg-body); }
 .bk-hero.danger      { background-color: var(--danger-bg); border-color: var(--danger-border); border-left-color: var(--danger); }
 .bk-hero.danger .dot { background-color: var(--danger); }
 .bk-hero.idle        { border-left-color: var(--border-strong); }
-.bk-hero.idle .dot   { background-color: var(--text-muted); }
+.bk-hero.idle .dot   { background-color: var(--ec-text-muted); }
 
 /* ==========================================================================
-   BADGES, KEY/VALUE ROWS, CAPABILITIES, DISK BAR
+   KEY/VALUE ROWS, CAPABILITIES, DISK BAR
    ========================================================================== */
-.bk-badge {
-    display: inline-block;
-    padding: 1px 8px;
-    border-radius: 0.75rem;
-    font-size: var(--font-2xs);
-    color: var(--accent);
-    background-color: var(--accent-bg);
-    border: 1px solid var(--accent-border);
-}
-.bk-badge.grey { color: var(--text-secondary); background-color: var(--bg-badge); border-color: var(--border-strong); }
-.bk-badge.ok   { color: var(--ok); background-color: var(--ok-bg); border-color: var(--ok-border); }
-.bk-badge.danger { color: var(--danger); background-color: var(--danger-bg); border-color: var(--danger-border); }
-
 .bk-rows { display: flex; flex-direction: column; }
 .bk-row { display: flex; gap: 1rem; padding: 0.45rem 0; border-bottom: 1px solid var(--border); }
 .bk-row:last-child { border-bottom: none; }
-.bk-row .k { width: 210px; flex-shrink: 0; color: var(--text-secondary); }
-.bk-row .v { color: var(--text-body); min-width: 0; word-break: break-word; }
+.bk-row .k { width: 210px; flex-shrink: 0; color: var(--ec-text-secondary); }
+.bk-row .v { color: var(--ec-value-color); min-width: 0; word-break: break-word; }
 
 .bk-caps { display: flex; flex-direction: column; gap: 0.45rem; }
 .bk-cap { display: flex; align-items: baseline; gap: 0.55rem; }
 .bk-cap .mark { width: 14px; flex-shrink: 0; font-weight: 700; }
 .bk-cap.yes .mark { color: var(--ok); }
-.bk-cap.no .mark { color: var(--text-muted); }
-.bk-cap.no { color: var(--text-secondary); }
+.bk-cap.no .mark { color: var(--ec-text-muted); }
+.bk-cap.no { color: var(--ec-text-secondary); }
 
 .bk-bar {
     box-sizing: content-box;
@@ -144,10 +129,9 @@ body { background-color: var(--bg-body); }
     overflow: hidden;
     margin: 0.6rem 0 0.4rem 0;
 }
-.bk-bar > div { height: 100%; background-color: var(--accent); }
+.bk-bar > div { height: 100%; background-color: var(--bs-primary); }
 
 .bk-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-.bk-actions .btn { margin: 0; }
 
 /* ==========================================================================
    TABLES — panel.css styles these. Columns size to their content, and the row
@@ -158,7 +142,6 @@ body { background-color: var(--bg-body); }
 .backup-page .panel table tr:last-child td { border-bottom: none; }
 .backup-page .panel table td.right,
 .backup-page .panel table th.right { text-align: right; }
-.backup-page .panel table .btn { margin: 0; }
 
 /* ==========================================================================
    LOG, DISCLOSURES AND NOTICES
@@ -170,7 +153,7 @@ body { background-color: var(--bg-body); }
     border: 1px solid var(--border);
     border-radius: var(--radius-control);
     background-color: var(--bg-badge);
-    color: var(--text-body);
+    color: var(--ec-value-color);
     font-family: var(--font-mono);
     font-size: var(--font-xs);
     line-height: 19px;
@@ -182,7 +165,7 @@ body { background-color: var(--bg-body); }
 
 .bk-disclosure > summary {
     cursor: pointer;
-    color: var(--accent);
+    color: var(--bs-primary);
     font-size: var(--font-sm);
     padding: 0.3rem 0;
     list-style: none;
@@ -190,15 +173,15 @@ body { background-color: var(--bg-body); }
 .bk-disclosure > summary::-webkit-details-marker { display: none; }
 .bk-disclosure > summary::before { content: "\25B8  "; }
 .bk-disclosure[open] > summary::before { content: "\25BE  "; }
-.bk-disclosure > div { padding: 0.3rem 0 0.2rem 1rem; color: var(--text-secondary); }
+.bk-disclosure > div { padding: 0.3rem 0 0.2rem 1rem; color: var(--ec-text-secondary); }
 
 .bk-notice {
     padding: 0.7rem 1rem;
     margin-bottom: 0.5rem;
     border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
+    border-left: 3px solid var(--bs-primary);
     border-radius: var(--radius-card);
-    background-color: var(--accent-bg);
+    background-color: var(--bs-primary-bg-subtle);
     font-size: var(--font-sm);
 }
 .bk-notice.danger {

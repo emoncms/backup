@@ -103,7 +103,7 @@
     load_css("Modules/backup/backup_view.css");
 ?>
 
-<div class="backup-page" id="backup-app" v-cloak>
+<div class="panel-page backup-page" id="backup-app" v-cloak>
 
     <div class="bk-switcher">
         <div class="btn-group">
@@ -133,7 +133,7 @@
             <div class="panel-header">
                 <span class="panel-accent"></span>
                 <span class="panel-name"><?php echo tr("Backup to an attached drive"); ?></span>
-                <span class="bk-badge grey"><?php echo tr("turned off"); ?></span>
+                <span class="badge px-2 bg-secondary-subtle text-secondary-emphasis"><?php echo tr("turned off"); ?></span>
             </div>
             <div class="panel-body">
                 <p class="text-muted"><?php echo tr("Emoncms can keep a copy of your data on a USB drive or a NAS share, adding only what is new each day. Doing that runs as root: it mounts drives, edits /etc/fstab and can format a disk. It is turned on automatically on a Raspberry Pi and left off everywhere else, so that it cannot be reached where it is not wanted."); ?></p>
@@ -292,7 +292,7 @@
                     <template v-for="c in choices" :key="c.key">
                     <tr>
                         <td>{{ c.name }}<br><span class="text-muted mono">{{ c.detail }}</span></td>
-                        <td><span class="bk-badge" :class="{grey: c.kind != 'removable'}">{{ kind_label(c) }}</span></td>
+                        <td><span class="badge px-2" :class="c.kind == 'removable' ? 'bg-primary-subtle text-primary-emphasis' : 'bg-secondary-subtle text-secondary-emphasis'">{{ kind_label(c) }}</span></td>
                         <td>{{ c.space }}</td>
                         <td class="right">
                             <button class="btn btn-sm btn-primary" v-if="c.mounted"
@@ -379,7 +379,7 @@
                 <tbody>
                     <tr v-for="s in status.sql" :key="s.period + s.name">
                         <td class="mono">{{ snapshot_date(s.name) }}</td>
-                        <td><span class="bk-badge" :class="{grey: s.period=='daily'}">{{ s.period }}</span></td>
+                        <td><span class="badge px-2" :class="s.period == 'daily' ? 'bg-secondary-subtle text-secondary-emphasis' : 'bg-primary-subtle text-primary-emphasis'">{{ s.period }}</span></td>
                         <td>{{ s.size_mb }} MB</td>
                     </tr>
                 </tbody>
@@ -423,10 +423,10 @@
                 <span class="panel-accent"></span>
                 <span class="panel-name"><?php echo tr("From the backup drive"); ?></span>
                 <?php if (!$drive_backup_enabled) { ?>
-                <span class="bk-badge grey"><?php echo tr("turned off"); ?></span>
+                <span class="badge px-2 bg-secondary-subtle text-secondary-emphasis"><?php echo tr("turned off"); ?></span>
                 <?php } else { ?>
-                <span class="bk-badge ok" v-if="status.available"><?php echo tr("Connected"); ?></span>
-                <span class="bk-badge grey" v-else><?php echo tr("Not connected"); ?></span>
+                <span class="badge px-2 bg-success-subtle text-success-emphasis" v-if="status.available"><?php echo tr("Connected"); ?></span>
+                <span class="badge px-2 bg-secondary-subtle text-secondary-emphasis" v-else><?php echo tr("Not connected"); ?></span>
                 <?php } ?>
             </div>
             <div class="panel-body">
@@ -526,13 +526,13 @@
         <div class="panel-header is-toggle" @click="show_log = !show_log">
             <span class="panel-accent"></span>
             <span class="panel-name">{{ log_title }}</span>
-            <span class="bk-badge" v-if="busy"><?php echo tr("running"); ?></span>
+            <span class="badge px-2 bg-primary-subtle text-primary-emphasis" v-if="busy"><?php echo tr("running"); ?></span>
             <!-- Whether the run worked. The log ends in a line that says so, but
                  that is the one line nobody scrolls down to read. -->
-            <span class="bk-badge ok" v-else-if="log_result == 'ok'">&check; {{ T.ran_ok }}</span>
-            <span class="bk-badge danger" v-else-if="log_result == 'error'">{{ T.ran_failed }}</span>
-            <span class="bk-badge grey" v-else-if="log_result == 'skipped'">{{ T.ran_skipped }}</span>
-            <span class="bk-badge danger" v-else-if="log_result == 'notstarted'">{{ T.not_started }}</span>
+            <span class="badge px-2 bg-success-subtle text-success-emphasis" v-else-if="log_result == 'ok'">&check; {{ T.ran_ok }}</span>
+            <span class="badge px-2 bg-danger-subtle text-danger-emphasis" v-else-if="log_result == 'error'">{{ T.ran_failed }}</span>
+            <span class="badge px-2 bg-secondary-subtle text-secondary-emphasis" v-else-if="log_result == 'skipped'">{{ T.ran_skipped }}</span>
+            <span class="badge px-2 bg-danger-subtle text-danger-emphasis" v-else-if="log_result == 'notstarted'">{{ T.not_started }}</span>
             <span class="bk-toggle">{{ show_log ? "\u25BE " + T.hide_log : "\u25B8 " + T.show_log }}</span>
         </div>
         <div class="panel-body" v-show="show_log">
