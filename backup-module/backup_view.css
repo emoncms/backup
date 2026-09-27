@@ -31,17 +31,6 @@ main.content-container:has(.backup-page) { max-width: 1000px; }
 .backup-page .panel-header .btn { margin-left: auto; }
 .backup-page .panel-body { padding: 1rem; }
 
-/* Sub-heading within a card body */
-.backup-page .bk-subhead {
-    margin: 1.2rem 0 0.6rem 0;
-    font-size: var(--font-2xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--ec-text-secondary);
-}
-.backup-page .bk-subhead:first-child { margin-top: 0; }
-
 /* Names a group of cards. The page does two different jobs, an ongoing backup
    to a drive and a portable copy to take away, and saying so is what keeps them
    from reading as one long list. */
