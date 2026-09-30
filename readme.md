@@ -11,7 +11,7 @@ Both are available from the **Backup** module in Emoncms and from a shell.
 
 ## User guide
 
-[Backup module User Guide](https://guide.openenergymonitor.org/setup/import/) and a [video screencast](https://www.youtube.com/watch?v=5U_tOlsWjXM).
+[Backup and restore](https://docs.openenergymonitor.org/emoncms/import.html) in the Emoncms user guide.
 
 ## Install
 
