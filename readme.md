@@ -16,6 +16,8 @@ Both are available from the **Backup** module in Emoncms and from a shell.
 - [Restoring](docs/restore.md): restoring from the drive, and undoing a restore
 - [Reference](docs/reference.md): every command line option, the timers, the interface, running as root, the layout on the drive and the safety checks
 
+See also [Backup and restore](https://docs.openenergymonitor.org/emoncms/import.html) in the Emoncms user guide.
+
 ## Install
 
 Requirements:
