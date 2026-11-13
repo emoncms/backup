@@ -141,12 +141,11 @@ then # if username sring is not empty
             fi
         fi
         echo "Emoncms MYSQL database import..."
-
-	if grep -q "enable the sandbox mode" ${import_location}/emoncms.sql ; then
-	echo "Removing sandbox mode command from emoncms.sql dump file to maintain compatibility with older MariaDB versions"
-	sed -i 1,1d ${import_location}/emoncms.sql
-	fi
- 
+        # Remove MariaDB sandbox line, not supported by older clients
+        if head -n 1 "${import_location}/emoncms.sql" | grep -q 'enable the sandbox mode'; then
+            echo "Removing MariaDB sandbox mode line from emoncms.sql"
+            sed -i '1d' "${import_location}/emoncms.sql"
+        fi
         mysql -u"${username}" -p"${password}" "${database}" < "${import_location}/emoncms.sql"
     if [ $? -ne 0 ]; then
         echo "Error: failed to import mysql data"

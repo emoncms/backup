@@ -478,7 +478,8 @@ stop_services
 #-----------------------------------------------------------------------------------------------
 echo ""
 echo "--- Restoring Emoncms MYSQL database ---"
-if gunzip -c "${sql_file}" | mysql --defaults-file="${mysql_defaults_file}" "${database}"; then
+# Remove MariaDB sandbox line, not supported by older clients
+if gunzip -c "${sql_file}" | sed '1{/enable the sandbox mode/d}' | mysql --defaults-file="${mysql_defaults_file}" "${database}"; then
     echo "Database restored from $(basename "${sql_file}")"
 else
     echo "Error: failed to import mysql data"
