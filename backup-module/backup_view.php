@@ -39,6 +39,9 @@
     $archive_filename = "emoncms-backup-".preg_replace('/[^a-zA-Z0-9\-]/', '-', gethostname())."-".date("Y-m-d").".tar.gz";
     $archive_ready = file_exists($parsed_ini['backup_location']."/".$archive_filename)
                      && !file_exists("/tmp/backuplock");
+    // filesize() can be negative or false above 2 GB on 32-bit PHP
+    $archive_size = $archive_ready ? @filesize($parsed_ini['backup_location']."/".$archive_filename) : false;
+    if (!($archive_size > 0)) $archive_size = null;
 
     $T = array(
         "checking"        => tr("Checking"),
@@ -401,7 +404,7 @@
                 <p class="text-muted"><?php echo tr("One compressed file holding everything, to keep off site or move to another emonPi or emonBase. It rewrites all of your data each time, so use it now and then rather than daily."); ?></p>
                 <div class="bk-actions">
                     <button class="btn btn-default" :disabled="busy" @click="run('start','exportlog')"><?php echo tr("Build archive"); ?></button>
-                    <a class="btn btn-default" v-if="archive_ready" href="<?php echo $path; ?>backup/download"><?php echo tr("Download"); ?>&nbsp;<span class="mono">{{ archive_filename }}</span></a>
+                    <a class="btn btn-default" v-if="archive_ready" href="<?php echo $path; ?>backup/download"><?php echo tr("Download"); ?>&nbsp;<span class="mono">{{ archive_filename }}</span><span v-if="archive_size">&nbsp;({{ bytes(archive_size) }})</span></a>
                 </div>
                 <p class="text-muted bk-hint" v-if="!archive_ready"><?php echo tr("The download link appears here once the archive is built."); ?></p>
             </div>
@@ -580,6 +583,7 @@ Vue.createApp({
         show_log: true,
         archive_ready: <?php echo $archive_ready ? "true" : "false"; ?>,
         archive_filename: <?php echo json_encode($archive_filename); ?>,
+        archive_size: <?php echo json_encode($archive_size); ?>,
         log_action: "",
         log_timer: false,
         log_last: "",
@@ -948,6 +952,10 @@ Vue.createApp({
                     if (self.log_action == "exportlog" &&
                         result.indexOf("=== Emoncms export complete! ===") != -1) {
                         self.archive_ready = true;
+                        self.archive_size = null;
+                        $.ajax({url: backup_path + "backup/archivesize", dataType: "json", success: function(r) {
+                            self.archive_size = r.size;
+                        }});
                     }
                     return;
                 }

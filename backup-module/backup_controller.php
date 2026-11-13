@@ -241,8 +241,18 @@ function backup_controller()
         header("Content-Disposition: attachment; filename=\"$backup_filename\"");
         header("Pragma: no-cache");
         header("Expires: 0");
+        $size = @filesize($parsed_ini['backup_location']."/".$backup_filename);
+        if ($size > 0) header("Content-Length: $size");
         readfile($parsed_ini['backup_location']."/".$backup_filename);
         exit;
+    }
+
+    // Size of today's export archive in bytes, null if not present
+    if ($route->action == "archivesize") {
+        $route->format = "json";
+        $backup_filename="emoncms-backup-".preg_replace('/[^a-zA-Z0-9\-]/', '-', gethostname())."-".date("Y-m-d").".tar.gz";
+        $size = @filesize($parsed_ini['backup_location']."/".$backup_filename);
+        return array('content' => array("size" => $size > 0 ? $size : null));
     }
 
     if ($route->action == "upload") {
