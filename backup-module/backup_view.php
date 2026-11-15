@@ -41,7 +41,7 @@
                      && !file_exists("/tmp/backuplock");
     // filesize() can be negative or false above 2 GB on 32-bit PHP
     $archive_size = $archive_ready ? @filesize($parsed_ini['backup_location']."/".$archive_filename) : false;
-    if (!($archive_size > 0)) $archive_size = null;
+    if ($archive_size <= 0) $archive_size = null;
 
     $T = array(
         "checking"        => tr("Checking"),
